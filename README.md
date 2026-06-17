@@ -1,40 +1,22 @@
 # Schift AI Memory
 
-User-installed collector for saving AI work context into the right Schift
-company memory bucket.
+Installable AI work memory for Schift users.
 
-The product is distributed as installable pieces:
+- English: [README.en.md](README.en.md)
+- Korean: [README.ko.md](README.ko.md)
 
-- `npx @schift-io/ai-memory init` for setup
-- `@schift-io/ai-memory-mcp` for local or hosted MCP
-- Codex plugin bundle with skills, MCP config, and opt-in hooks
-- Claude Code hook installer
-- Claude Desktop `.mcpb` bundle template
-
-## Install
+## Quick Start
 
 ```bash
-npx @schift-io/ai-memory init
+npx -y schift-ai-memory login
 ```
 
-Recommended first connection:
+This opens Schift in your browser, signs you in, creates a dedicated AI Memory
+API key, verifies it with `/v1/auth/me`, and stores local configuration under:
 
-```bash
-npx @schift-io/ai-memory login
+```text
+~/.schift/ai-memory/config.json
 ```
-
-The CLI opens Schift OAuth in the browser, receives a local callback, stores a
-dedicated AI Memory API key, and verifies it with `/v1/auth/me`.
-
-The installer asks which harnesses to configure:
-
-- Codex plugin
-- Claude Code hooks
-- Claude Desktop MCP bundle
-- Cursor MCP config
-
-Default upload policy is summaries and metadata only. Raw transcripts and
-artifact upload must be explicitly enabled.
 
 Default routing:
 
@@ -43,65 +25,75 @@ bucket: default
 collection: _daily_log
 ```
 
+## What You Get
+
+- A local installer CLI for Codex, Claude Code, Claude Desktop, Cursor, and MCP.
+- OAuth-based connection to your Schift account.
+- A dedicated API key for AI memory upload, separate from your normal login.
+- Metadata-first daily work logs in Schift.
+- Conservative upload policy: summaries and metadata by default, raw transcripts off.
+- Redaction for common secrets and local machine paths before upload.
+- A reusable package boundary for plugin marketplace distribution.
+
+## Different from Honcho
+
+Honcho is an agent memory backend for persistent personalization and user/agent
+modeling. Schift AI Memory is an installable harness for routing AI work logs,
+daily summaries, and job metadata into a user's Schift company bucket.
+
+In short:
+
+- Honcho: agent memory and personalization backend.
+- Schift AI Memory: company-owned AI work log ingestion for Schift.
+
+See the full comparison:
+
+- English: [How Is This Different from Honcho?](README.en.md#how-is-this-different-from-honcho)
+- Korean: [Honcho와 뭐가 다른가](README.ko.md#honcho와-뭐가-다른가)
+
+## Commands
+
+```bash
+npx -y schift-ai-memory login
+npx -y schift-ai-memory init
+npx -y schift-ai-memory codex-marketplace
+npx -y schift-ai-memory claude-code-settings --print
+npx -y schift-ai-memory metadata-example
+```
+
+Scoped package form also works:
+
+```bash
+npx -y --package @schift-io/ai-memory schift-ai-memory login
+```
+
+## Packages
+
+- `schift-ai-memory`: npx-friendly installer CLI
+- `@schift-io/ai-memory`: scoped installer CLI
+- `@schift-io/ai-memory-core`: shared metadata, redaction, queue, and upload helpers
+- `@schift-io/ai-memory-hooks`: lifecycle hook commands for Codex and Claude
+- `@schift-io/ai-memory-mcp`: MCP server package
+
 ## Repository Layout
 
 ```text
 packages/cli      npx installer and config writer
 packages/core     metadata schema, redaction, local queue, uploader
 packages/hooks    Codex/Claude lifecycle hook commands
-packages/mcp      Schift MCP server, seeded from @schift-io/mcp
+packages/mcp      Schift MCP server
+packages/npx      unscoped npx package
 plugins/          Codex plugin marketplace bundle
 bundles/          Claude Desktop MCPB manifest template
+docs/             boundary, privacy, and host-specific installation notes
 ```
 
-## Metadata Shape
-
-Every event is routed to a Schift company bucket with job metadata:
-
-```json
-{
-  "source": "codex",
-  "harness": "codex-plugin",
-  "event_kind": "ai_job_summary",
-  "company_bucket": "company:...",
-  "job": {
-    "type": "coding",
-    "title": "Implement billing smoke test",
-    "intent": "what the user was trying to accomplish",
-    "status": "completed",
-    "repo": "schift-io/schift",
-    "branch": "main",
-    "commit": "abc123"
-  },
-  "content_policy": {
-    "raw_transcript": false,
-    "artifacts": "selected",
-    "redaction": "default"
-  }
-}
-```
-
-## Local Development
+## Development
 
 ```bash
 npm install
 npm run build
+npm run lint
 npm test
+npm audit --audit-level=high
 ```
-
-## Publish Surfaces
-
-```bash
-npm publish --workspace @schift-io/ai-memory --access public
-npm publish --workspace @schift-io/ai-memory-core --access public
-npm publish --workspace @schift-io/ai-memory-hooks --access public
-npm publish --workspace @schift-io/ai-memory-mcp --access public
-```
-
-Codex plugin distribution is exposed through:
-
-```bash
-codex plugin marketplace add schift-io/schift-ai-memory --sparse .agents/plugins
-```
-
-Claude Desktop `.mcpb` release assets are built from `bundles/claude-desktop/`.
