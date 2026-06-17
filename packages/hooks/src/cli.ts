@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -38,21 +39,54 @@ function queueDir(): string {
   return process.env.SCHIFT_AI_MEMORY_QUEUE_DIR ?? join(homedir(), ".schift", "ai-memory", "queue");
 }
 
+async function readLocalConfig(): Promise<Record<string, unknown>> {
+  const path = process.env.SCHIFT_AI_MEMORY_CONFIG ?? join(homedir(), ".schift", "ai-memory", "config.json");
+  try {
+    return JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
 async function main() {
   const command = process.argv[2] ?? "codex-stop";
   const payload = parseJson(await readStdin());
+  const config = await readLocalConfig();
   const source = sourceForCommand(command);
   const sessionId = stringValue(payload.session_id) ?? stringValue(payload.sessionId);
   const cwd = stringValue(payload.cwd) ?? stringValue(payload.working_directory);
   const prompt = stringValue(payload.prompt) ?? stringValue(payload.user_prompt);
   const summary = stringValue(payload.summary) ?? stringValue(payload.transcript_summary);
+  const bucket =
+    process.env.SCHIFT_COMPANY_BUCKET ??
+    stringValue(payload.company_bucket) ??
+    stringValue(payload.bucket) ??
+    stringValue(config.bucket) ??
+    "default";
+  const collection =
+    process.env.SCHIFT_COLLECTION ??
+    stringValue(payload.collection) ??
+    stringValue(config.collection) ??
+    "_daily_log";
+  const orgId =
+    process.env.SCHIFT_ORG_ID ??
+    stringValue(payload.org_id) ??
+    stringValue(payload.orgId) ??
+    stringValue(config.org_id);
+  const userId =
+    process.env.SCHIFT_USER_ID ??
+    stringValue(payload.user_id) ??
+    stringValue(payload.userId) ??
+    stringValue(config.user_id);
 
   const event = createAiMemoryEvent({
     source,
     harness: command.startsWith("claude") ? "claude-code-hooks" : "codex-plugin-hooks",
     event_kind: command.includes("session") ? "session_ended" : "ai_job_summary",
-    company_bucket: process.env.SCHIFT_COMPANY_BUCKET,
-    collection: process.env.SCHIFT_COLLECTION ?? "_daily_log",
+    org_id: orgId,
+    user_id: userId,
+    company_bucket: bucket,
+    collection,
     session_id: sessionId,
     job: {
       type: process.env.SCHIFT_AI_MEMORY_JOB_TYPE ?? "coding",
@@ -68,12 +102,17 @@ async function main() {
     metadata: {
       hook_command: command,
       payload_keys: Object.keys(payload).sort(),
+      config_metadata: {
+        has_api_key: Boolean(config.api_key),
+        has_org_id: Boolean(orgId),
+        has_user_id: Boolean(userId),
+      },
     },
   });
 
-  const apiKey = process.env.SCHIFT_API_KEY;
-  const apiBaseUrl = process.env.SCHIFT_API_BASE_URL ?? "https://api.schift.io";
-  if (apiKey && process.env.SCHIFT_AI_MEMORY_UPLOAD === "1") {
+  const apiKey = process.env.SCHIFT_API_KEY ?? stringValue(config.api_key);
+  const apiBaseUrl = process.env.SCHIFT_API_BASE_URL ?? stringValue(config.api_base_url) ?? "https://api.schift.io";
+  if (apiKey && process.env.SCHIFT_AI_MEMORY_UPLOAD !== "0") {
     const result = await uploadEvent({ apiBaseUrl, apiKey, event });
     if (result.ok) {
       console.error(`[schift-ai-memory-hooks] uploaded ${result.id}`);

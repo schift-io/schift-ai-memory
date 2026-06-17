@@ -173,16 +173,38 @@ export async function uploadEvent(options: {
   const buckets = (await response.json().catch(() => [])) as Array<{ id?: unknown; name?: unknown }>;
   const bucket = buckets.find((entry) => entry.name === bucketName || entry.id === bucketName);
   const bucketId = typeof bucket?.id === "string" ? bucket.id : bucketName;
+  const collectionName = event.collection ?? "_daily_log";
+  let collectionId: string | undefined;
+  try {
+    const collectionResponse = await fetch(`${baseUrl}/v1/buckets/${encodeURIComponent(bucketId)}/collections`, {
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`,
+        "X-Schift-Client": "ai-memory",
+      },
+    });
+    if (collectionResponse.ok) {
+      const collections = (await collectionResponse.json().catch(() => [])) as Array<{
+        id?: unknown;
+        name?: unknown;
+      }>;
+      const collection = collections.find((entry) => entry.name === collectionName || entry.id === collectionName);
+      if (typeof collection?.id === "string") collectionId = collection.id;
+    }
+  } catch {
+    collectionId = undefined;
+  }
   const filename = `${event.collection ?? "_daily_log"}-${event.created_at.slice(0, 10)}-${event.id}.json`;
   const metadata: Record<string, string> = {
     source: event.source,
     harness: event.harness,
     event_kind: event.event_kind,
-    collection: event.collection ?? "_daily_log",
+    collection: collectionName,
     job_type: event.job.type,
     job_status: event.job.status,
     job_title: event.job.title,
   };
+  if (event.org_id) metadata.org_id = event.org_id;
+  if (event.user_id) metadata.user_id = event.user_id;
   if (event.session_id) metadata.session_id = event.session_id;
   if (event.job.repo) metadata.repo = event.job.repo;
   if (event.job.branch) metadata.branch = event.job.branch;
@@ -190,6 +212,7 @@ export async function uploadEvent(options: {
   const form = new FormData();
   form.append("files", new Blob([JSON.stringify(event, null, 2)], { type: "application/json" }), filename);
   form.append("metadata", JSON.stringify(metadata));
+  if (collectionId) form.append("collection_id", collectionId);
 
   try {
     response = await fetch(`${baseUrl}${options.endpoint ?? `/v1/buckets/${encodeURIComponent(bucketId)}/upload`}`, {

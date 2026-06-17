@@ -88,6 +88,7 @@ function claudeCodeSettings(bucket: string) {
       SCHIFT_COMPANY_BUCKET: bucket,
       SCHIFT_COLLECTION: collectionName(),
       SCHIFT_AI_MEMORY_POLICY: "summary_metadata_only",
+      SCHIFT_AI_MEMORY_UPLOAD: "1",
     },
   };
 }
@@ -262,9 +263,11 @@ async function exchangeCodeForKey(code: string, codeVerifier: string) {
   }
   return (await response.json()) as {
     key?: string;
+    key_preview?: string;
     api_key?: string;
     access_token?: string;
-    credential?: { api_key?: string };
+    credential?: { api_key?: string; org_id?: string; user_id?: string };
+    org?: { id?: string };
     user?: Record<string, unknown>;
     security?: Record<string, unknown>;
   };
@@ -342,8 +345,11 @@ async function login() {
     api_base_url: apiBaseUrl(),
     app_base_url: appBaseUrl(),
     api_key: apiKey,
+    key_preview: token.key_preview ?? null,
     bucket: companyBucket(),
     collection: collectionName(),
+    org_id: token.credential?.org_id ?? token.org?.id ?? null,
+    user_id: token.credential?.user_id ?? null,
     api_key_verification,
     me,
     security: token.security ?? null,

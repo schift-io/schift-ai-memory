@@ -23,7 +23,9 @@ collection: _daily_log
   `~/.schift/ai-memory/config.json`에 저장됩니다.
 - 연결 완료 전 `/v1/auth/me` 검증.
 - AI 작업 로그가 기본으로 `bucket: default`,
-  `collection: _daily_log`에 저장되는 경로.
+  `collection: _daily_log`에 저장되는 경로. Schift bucket 안에 `_daily_log`
+  collection이 실제로 있으면 `collection_id`를 붙이고, 없으면 문서
+  metadata의 `collection` 값으로 유지합니다.
 - 각 세션의 job metadata: source, harness, job type, title, intent, status,
   repo, branch, content policy.
 - 업로드 전 일반적인 secret과 로컬 머신 path redaction.
@@ -167,6 +169,10 @@ SCHIFT_COLLECTION=_daily_log
 
 `schift-ai-memory init --print`는 Cursor에 넣을 수 있는 MCP 설정 블록도
 출력합니다.
+
+Codex/Claude hook은 `~/.schift/ai-memory/config.json`을 읽습니다. API key가
+있으면 기본으로 서버에 업로드하고, 실패하면 local queue로 fallback합니다.
+queue-only 모드가 필요하면 `SCHIFT_AI_MEMORY_UPLOAD=0`을 설정하면 됩니다.
 
 ## 무엇이 올라가나
 

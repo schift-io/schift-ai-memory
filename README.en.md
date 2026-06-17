@@ -24,7 +24,9 @@ After installation, the user gets:
   `~/.schift/ai-memory/config.json`.
 - `/v1/auth/me` verification before any connector is treated as connected.
 - Daily AI work records routed to `bucket: default` and
-  `collection: _daily_log`.
+  `collection: _daily_log`. If a Schift bucket collection named `_daily_log`
+  exists, uploads attach its `collection_id`; otherwise `_daily_log` is stored
+  as document metadata.
 - Job metadata for each AI session: source, harness, job type, title, intent,
   status, repository, branch, and content policy.
 - Redaction of common secrets and strict local machine paths before upload.
@@ -168,6 +170,10 @@ SCHIFT_COLLECTION=_daily_log
 ```
 
 `schift-ai-memory init --print` prints a Cursor-compatible MCP config block.
+
+Codex and Claude hooks read `~/.schift/ai-memory/config.json`. When the config
+contains an API key, hooks upload by default and use the local queue as a
+fallback. Set `SCHIFT_AI_MEMORY_UPLOAD=0` to force queue-only mode.
 
 ## What Gets Uploaded
 
