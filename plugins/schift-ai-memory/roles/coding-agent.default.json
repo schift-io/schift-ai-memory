@@ -3,7 +3,7 @@
   "displayName": "Schift CodingAgent Default",
   "description": "Default Schift AI Memory role package for coding agents. Installs memory retrieval tools, lifecycle upload hooks, and metadata-first summarization guidance under the user's Schift authorization boundary.",
   "persona": "coding-agent",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "security": {
     "credentialSource": "schift-ai-memory-login-config",
     "localConfigPath": "~/.schift/ai-memory/config.json",
@@ -16,7 +16,7 @@
       "buckets:upload"
     ],
     "defaultBucket": "default",
-    "defaultCollection": "_daily_log",
+    "defaultCollection": "__schift_ai_daily_log",
     "rawTranscript": "opt-in",
     "artifactUpload": "selected-only"
   },
@@ -50,7 +50,7 @@
   "env": {
     "SCHIFT_DEFAULT_BUCKET": "default",
     "SCHIFT_COMPANY_BUCKET": "default",
-    "SCHIFT_COLLECTION": "_daily_log",
+    "SCHIFT_COLLECTION": "__schift_ai_daily_log",
     "SCHIFT_AI_MEMORY_POLICY": "summary_metadata_only",
     "SCHIFT_AI_MEMORY_UPLOAD": "1"
   }

@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "schift-ai-memory",
   "display_name": "Schift AI Memory",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Local MCP bundle for connecting Claude Desktop to Schift AI Memory.",
   "author": {
     "name": "Schift",
@@ -32,7 +32,7 @@
       "type": "string",
       "title": "Daily log collection",
       "description": "The metadata collection for AI work logs.",
-      "default": "_daily_log",
+      "default": "__schift_ai_daily_log",
       "required": false
     }
   }

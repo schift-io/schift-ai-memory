@@ -13,7 +13,7 @@ describe("schift-ai-memory CLI", () => {
     const { stdout } = await execFileAsync("node", ["dist/cli.js", "init", "--print", "--bucket", "company:room821"]);
     const plan = JSON.parse(stdout);
     assert.equal(plan.company_bucket, "company:room821");
-    assert.equal(plan.collection, "_daily_log");
+    assert.equal(plan.collection, "__schift_ai_daily_log");
     assert.match(plan.install.codex, /codex plugin marketplace add/);
     assert.equal(plan.upload_policy, "summary_metadata_only");
     assert.equal(plan.role_package.id, "schift.coding-agent.default");
@@ -51,7 +51,7 @@ describe("schift-ai-memory CLI", () => {
 
     const settings = JSON.parse(await readFile(output, "utf8"));
     assert.equal(settings.env.SCHIFT_COMPANY_BUCKET, "company:room821");
-    assert.equal(settings.env.SCHIFT_COLLECTION, "_daily_log");
+    assert.equal(settings.env.SCHIFT_COLLECTION, "__schift_ai_daily_log");
   });
 
   it("reports login status through doctor without requiring network when config is missing", async () => {

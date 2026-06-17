@@ -173,7 +173,7 @@ export async function uploadEvent(options: {
   const buckets = (await response.json().catch(() => [])) as Array<{ id?: unknown; name?: unknown }>;
   const bucket = buckets.find((entry) => entry.name === bucketName || entry.id === bucketName);
   const bucketId = typeof bucket?.id === "string" ? bucket.id : bucketName;
-  const collectionName = event.collection ?? "_daily_log";
+  const collectionName = event.collection ?? "__schift_ai_daily_log";
   let collectionId: string | undefined;
   try {
     const collectionResponse = await fetch(`${baseUrl}/v1/buckets/${encodeURIComponent(bucketId)}/collections`, {
@@ -193,7 +193,7 @@ export async function uploadEvent(options: {
   } catch {
     collectionId = undefined;
   }
-  const filename = `${event.collection ?? "_daily_log"}-${event.created_at.slice(0, 10)}-${event.id}.json`;
+  const filename = `${event.collection ?? "__schift_ai_daily_log"}-${event.created_at.slice(0, 10)}-${event.id}.json`;
   const metadata: Record<string, string> = {
     source: event.source,
     harness: event.harness,

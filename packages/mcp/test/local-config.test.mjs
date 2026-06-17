@@ -18,7 +18,7 @@ describe("Schift MCP local AI Memory config", () => {
           api_base_url: "https://api.test",
           api_key: "sch_local",
           bucket: "default",
-          collection: "_daily_log",
+          collection: "__schift_ai_daily_log",
           identity: {
             user_id: "usr_123",
           },

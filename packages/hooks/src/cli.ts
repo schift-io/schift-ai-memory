@@ -121,7 +121,7 @@ async function main() {
     process.env.SCHIFT_COLLECTION ??
     stringValue(payload.collection) ??
     stringValue(config.collection) ??
-    "_daily_log";
+    "__schift_ai_daily_log";
   const orgId =
     process.env.SCHIFT_ORG_ID ??
     stringValue(payload.org_id) ??

@@ -20,7 +20,7 @@ the authority. Client-side identity and security metadata is provenance only.
       "buckets:upload"
     ],
     "allowed_buckets": ["default"],
-    "allowed_collections": ["_daily_log"]
+    "allowed_collections": ["__schift_ai_daily_log"]
   },
   "security": {
     "level": "standard",
@@ -45,6 +45,43 @@ The server should persist the same authorization boundary with the API key:
 - `expires_at` or rotation policy
 - revoked/disabled state
 
+## Reserved System Collection
+
+The default CodingAgent collection is a reserved Schift system collection:
+
+```text
+__schift_ai_daily_log
+```
+
+The `__schift_` prefix is reserved for Schift-owned system collections. Users
+should not be allowed to create arbitrary user collections with this prefix.
+
+During `POST /v1/auth/cli/code-exchange`, the server should ensure this
+collection exists inside the authorized bucket before returning the credential:
+
+1. Resolve or create the user's default bucket, normally `default`.
+2. Resolve or create `__schift_ai_daily_log` as a system collection under that
+   bucket.
+3. Persist the API key with `allowed_buckets: ["default"]` and
+   `allowed_collections: ["__schift_ai_daily_log"]`.
+4. Return the resolved collection in the code-exchange response.
+
+Suggested response extension:
+
+```json
+{
+  "credential": {
+    "allowed_buckets": ["default"],
+    "allowed_collections": ["__schift_ai_daily_log"]
+  },
+  "defaults": {
+    "bucket": "default",
+    "collection": "__schift_ai_daily_log",
+    "collection_id": "col_..."
+  }
+}
+```
+
 ## Required Enforcement
 
 For every request authenticated by a `sch_` API key:
@@ -60,8 +97,8 @@ For every request authenticated by a `sch_` API key:
 | workflow run/dry-run/list | separate workflow scope, disabled by default client-side |
 
 Bucket and collection filters must be enforced server-side. If a key only
-allows `bucket: default` and `collection: _daily_log`, search/upload must reject
-other targets with `403`.
+allows `bucket: default` and `collection: __schift_ai_daily_log`,
+search/upload must reject other targets with `403`.
 
 ## Default CodingAgent Package
 
@@ -84,7 +121,7 @@ Default route:
 
 ```text
 bucket: default
-collection: _daily_log
+collection: __schift_ai_daily_log
 ```
 
 ## Negative Tests Required Server-Side
@@ -93,6 +130,6 @@ collection: _daily_log
 - A key without `ai_memory:write` cannot upload hook events.
 - A key without `buckets:read` cannot list buckets or collections.
 - A key scoped to `default` cannot search or upload to another bucket.
-- A key scoped to `_daily_log` cannot write to a different collection.
+- A key scoped to `__schift_ai_daily_log` cannot write to a different collection.
 - A revoked key returns `401` or `403`.
 - Workflow tools require a separate workflow execution scope.

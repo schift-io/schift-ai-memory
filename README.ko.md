@@ -7,7 +7,7 @@ Schift AI Memory는 Codex, Claude, Cursor, MCP에서 사용자가 AI로 처리�
 
 ```text
 bucket: default
-collection: _daily_log
+collection: __schift_ai_daily_log
 ```
 
 기본 정책은 보수적으로 잡습니다. 요약과 메타데이터를 먼저 올리고, 원문
@@ -26,7 +26,7 @@ collection: _daily_log
   로컬 config에 캐시합니다. hook은 매 세션마다 `/me`를 호출하지 않고 이
   캐시를 사용합니다.
 - AI 작업 로그가 기본으로 `bucket: default`,
-  `collection: _daily_log`에 저장되는 경로. Schift bucket 안에 `_daily_log`
+  `collection: __schift_ai_daily_log`에 저장되는 경로. Schift bucket 안에 `__schift_ai_daily_log`
   collection이 실제로 있으면 `collection_id`를 붙이고, 없으면 문서
   metadata의 `collection` 값으로 유지합니다.
 - 각 세션의 job metadata: source, harness, job type, title, intent, status,
@@ -50,7 +50,7 @@ Schift AI Memory는 범위가 더 좁고 운영 로그에 가깝습니다.
 - Schift AI Memory는 사용자의 AI 작업 로그를 자기 회사 Schift bucket으로
   보내기 위한 설치형 harness입니다.
 - system of record는 Schift입니다. 기본 라우팅은 `bucket: default`,
-  `collection: _daily_log`이고, Schift의 user/security metadata와 회사
+  `collection: __schift_ai_daily_log`이고, Schift의 user/security metadata와 회사
   memory boundary를 따릅니다.
 - 핵심 레코드는 job/event입니다. 어떤 일을 했는지, 왜 했는지, 어떤
   harness가 했는지, 어느 repo/project였는지, 어떤 content policy였는지가
@@ -92,7 +92,7 @@ npx -y schift-ai-memory init
 저장 위치를 명시하고 싶으면 이렇게 실행합니다.
 
 ```bash
-npx -y schift-ai-memory init --bucket default --collection _daily_log
+npx -y schift-ai-memory init --bucket default --collection __schift_ai_daily_log
 ```
 
 scoped package 형태도 사용할 수 있습니다.
@@ -179,7 +179,7 @@ npx -y @schift-io/ai-memory-mcp
 
 ```text
 SCHIFT_DEFAULT_BUCKET=default
-SCHIFT_COLLECTION=_daily_log
+SCHIFT_COLLECTION=__schift_ai_daily_log
 ```
 
 `schift-ai-memory login` 또는 `schift-ai-memory init` 이후에는 MCP package가
@@ -209,7 +209,7 @@ npx -y schift-ai-memory metadata-example
   "source": "codex",
   "harness": "codex-plugin",
   "company_bucket": "default",
-  "collection": "_daily_log",
+  "collection": "__schift_ai_daily_log",
   "event_kind": "ai_job_summary",
   "job": {
     "type": "coding",

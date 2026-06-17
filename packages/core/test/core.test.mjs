@@ -18,7 +18,7 @@ describe("AI memory core", () => {
       source: "codex",
       harness: "codex-plugin",
       company_bucket: "company:room821",
-      collection: "_daily_log",
+      collection: "__schift_ai_daily_log",
       job: {
         type: "coding",
         title: "Fix login",
@@ -28,7 +28,7 @@ describe("AI memory core", () => {
 
     assert.equal(event.event_kind, "ai_job_summary");
     assert.equal(event.content_policy.raw_transcript, false);
-    assert.equal(event.collection, "_daily_log");
+    assert.equal(event.collection, "__schift_ai_daily_log");
     assert.equal(event.content_policy.artifacts, "selected");
     assert.deepEqual(event.tags, ["source:codex", "job:coding"]);
   });
@@ -72,12 +72,12 @@ describe("AI memory core", () => {
         return Response.json([{ id: "bucket_1", name: "default" }], { status: 200 });
       }
       if (String(url) === "https://api.test/v1/buckets/bucket_1/collections") {
-        return Response.json([{ id: "collection_1", name: "_daily_log" }], { status: 200 });
+        return Response.json([{ id: "collection_1", name: "__schift_ai_daily_log" }], { status: 200 });
       }
       assert.equal(String(url), "https://api.test/v1/buckets/bucket_1/upload");
       assert.ok(init.body instanceof FormData);
       const metadata = JSON.parse(String(init.body.get("metadata")));
-      assert.equal(metadata.collection, "_daily_log");
+      assert.equal(metadata.collection, "__schift_ai_daily_log");
       assert.equal(metadata.source, "codex");
       assert.equal(metadata.org_id, "org_1");
       assert.equal(metadata.user_id, "user_1");
@@ -97,7 +97,7 @@ describe("AI memory core", () => {
           source: "codex",
           harness: "codex-plugin",
           company_bucket: "default",
-          collection: "_daily_log",
+          collection: "__schift_ai_daily_log",
           org_id: "org_1",
           user_id: "user_1",
           summary: "token sk-abc1234567890abc1234567890abc",

@@ -1,6 +1,6 @@
 {
   "name": "@schift-io/ai-memory",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Installer CLI for Schift AI Memory across Codex, Claude, Cursor, and MCP.",
   "type": "module",
   "bin": {

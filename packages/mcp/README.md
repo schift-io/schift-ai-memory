@@ -42,7 +42,7 @@ Authorization: Bearer <your-schift-api-key-or-oauth-token>
       "args": ["-y", "@schift-io/ai-memory-mcp"],
       "env": {
         "SCHIFT_DEFAULT_BUCKET": "default",
-        "SCHIFT_COLLECTION": "_daily_log"
+        "SCHIFT_COLLECTION": "__schift_ai_daily_log"
       }
     }
   }

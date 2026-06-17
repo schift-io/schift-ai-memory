@@ -29,5 +29,5 @@ Default destination:
 
 ```text
 bucket: default
-collection: _daily_log
+collection: __schift_ai_daily_log
 ```

@@ -17,7 +17,7 @@ It includes:
 - lifecycle hooks: `codex-session-start`, `codex-stop`, `claude-stop`,
   `claude-session-end`
 - the `schift-ai-memory` skill
-- default routing to `bucket: default` and `collection: _daily_log`
+- default routing to `bucket: default` and `collection: __schift_ai_daily_log`
 - metadata-first upload policy with raw transcript capture off by default
 
 The local credential source is:

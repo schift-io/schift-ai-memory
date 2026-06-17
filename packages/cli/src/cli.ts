@@ -21,7 +21,7 @@ function printHelp() {
 
 Usage:
   schift-ai-memory init [--print] [--no-login] [--bucket <company-bucket>]
-  schift-ai-memory login [--bucket default] [--collection _daily_log]
+  schift-ai-memory login [--bucket default] [--collection __schift_ai_daily_log]
   schift-ai-memory doctor
   schift-ai-memory status
   schift-ai-memory me
@@ -40,7 +40,7 @@ function companyBucket(): string {
 }
 
 function collectionName(): string {
-  return argValue("--collection") ?? process.env.SCHIFT_COLLECTION ?? "_daily_log";
+  return argValue("--collection") ?? process.env.SCHIFT_COLLECTION ?? "__schift_ai_daily_log";
 }
 
 function addHours(date: Date, hours: number): string {
@@ -429,6 +429,15 @@ async function doctor() {
   const baseUrl = stringValue(config.api_base_url) ?? apiBaseUrl();
   const bucketName = stringValue(config.bucket) ?? companyBucket();
   const collection = stringValue(config.collection) ?? collectionName();
+  if (collection === "_daily_log") {
+    checks.push({
+      name: "collection_namespace",
+      status: "legacy",
+      collection,
+      recommended_collection: collectionName(),
+      next_action: "Run `npx -y schift-ai-memory login` to move new installs to the reserved __schift_ namespace.",
+    });
+  }
   if (!apiKey) {
     checks.push({ name: "api_key", status: "failed", error: "missing api_key in local config" });
     console.log(JSON.stringify({

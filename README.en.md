@@ -7,7 +7,7 @@ The default destination is:
 
 ```text
 bucket: default
-collection: _daily_log
+collection: __schift_ai_daily_log
 ```
 
 The default policy is conservative: upload summaries and metadata first. Raw
@@ -28,8 +28,8 @@ After installation, the user gets:
   exchange returns them. Hooks reuse this local cache instead of calling `/me`
   on every AI session.
 - Daily AI work records routed to `bucket: default` and
-  `collection: _daily_log`. If a Schift bucket collection named `_daily_log`
-  exists, uploads attach its `collection_id`; otherwise `_daily_log` is stored
+  `collection: __schift_ai_daily_log`. If a Schift bucket collection named `__schift_ai_daily_log`
+  exists, uploads attach its `collection_id`; otherwise `__schift_ai_daily_log` is stored
   as document metadata.
 - Job metadata for each AI session: source, harness, job type, title, intent,
   status, repository, branch, and content policy.
@@ -53,7 +53,7 @@ Schift AI Memory is narrower and more operational:
 - Schift AI Memory is an installable harness for capturing AI work logs into a
   user's own Schift company bucket.
 - The system of record is Schift: `bucket: default`,
-  `collection: _daily_log`, user security metadata, and company-scoped memory.
+  `collection: __schift_ai_daily_log`, user security metadata, and company-scoped memory.
 - The primary record is a job/event: what work was done, why it was done, by
   which harness, in which repo or project, and with what content policy.
 - It is metadata-first by default. Raw transcript capture is opt-in.
@@ -95,7 +95,7 @@ This command:
 Use a custom route only when needed:
 
 ```bash
-npx -y schift-ai-memory init --bucket default --collection _daily_log
+npx -y schift-ai-memory init --bucket default --collection __schift_ai_daily_log
 ```
 
 The scoped package form also works:
@@ -182,7 +182,7 @@ Minimum MCP environment:
 
 ```text
 SCHIFT_DEFAULT_BUCKET=default
-SCHIFT_COLLECTION=_daily_log
+SCHIFT_COLLECTION=__schift_ai_daily_log
 ```
 
 After `schift-ai-memory login` or `schift-ai-memory init`, the MCP package reads
@@ -212,7 +212,7 @@ Example shape:
   "source": "codex",
   "harness": "codex-plugin",
   "company_bucket": "default",
-  "collection": "_daily_log",
+  "collection": "__schift_ai_daily_log",
   "event_kind": "ai_job_summary",
   "job": {
     "type": "coding",

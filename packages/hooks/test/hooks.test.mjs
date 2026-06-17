@@ -59,7 +59,7 @@ describe("AI memory hooks", () => {
         `${JSON.stringify({
           api_key: "sch_test",
           bucket: "default",
-          collection: "_daily_log",
+          collection: "__schift_ai_daily_log",
           identity: {
             org_id: "org_123",
             user_id: "usr_456",
@@ -94,7 +94,7 @@ describe("AI memory hooks", () => {
       const queued = JSON.parse(await readFile(join(dir, files[0]), "utf8"));
       assert.equal(queued.org_id, "org_123");
       assert.equal(queued.user_id, "usr_456");
-      assert.equal(queued.collection, "_daily_log");
+      assert.equal(queued.collection, "__schift_ai_daily_log");
       assert.equal(queued.metadata.config_metadata.has_org_id, true);
       assert.equal(queued.metadata.config_metadata.has_user_id, true);
       assert.deepEqual(queued.metadata.cached_security, {
@@ -127,7 +127,7 @@ describe("AI memory hooks", () => {
           api_base_url: apiBaseUrl,
           api_key: "sch_revoked",
           bucket: "default",
-          collection: "_daily_log",
+          collection: "__schift_ai_daily_log",
           identity: {
             org_id: "org_123",
             user_id: "usr_456",

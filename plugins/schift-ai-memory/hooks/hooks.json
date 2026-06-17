@@ -10,7 +10,7 @@
             "statusMessage": "Preparing Schift AI memory context",
             "env": {
               "SCHIFT_COMPANY_BUCKET": "${SCHIFT_COMPANY_BUCKET:-default}",
-              "SCHIFT_COLLECTION": "${SCHIFT_COLLECTION:-_daily_log}",
+              "SCHIFT_COLLECTION": "${SCHIFT_COLLECTION:-__schift_ai_daily_log}",
               "SCHIFT_AI_MEMORY_POLICY": "summary_metadata_only",
               "SCHIFT_AI_MEMORY_UPLOAD": "1"
             }
@@ -28,7 +28,7 @@
             "statusMessage": "Queueing Schift AI memory summary",
             "env": {
               "SCHIFT_COMPANY_BUCKET": "${SCHIFT_COMPANY_BUCKET:-default}",
-              "SCHIFT_COLLECTION": "${SCHIFT_COLLECTION:-_daily_log}",
+              "SCHIFT_COLLECTION": "${SCHIFT_COLLECTION:-__schift_ai_daily_log}",
               "SCHIFT_AI_MEMORY_POLICY": "summary_metadata_only",
               "SCHIFT_AI_MEMORY_UPLOAD": "1"
             }
