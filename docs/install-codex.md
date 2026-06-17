@@ -21,7 +21,10 @@ npx -y schift-ai-memory init
 ```
 
 Hooks upload summary and metadata by default when a local API key exists. To
-force local queue-only mode:
+avoid a live identity lookup on every session, hooks use cached `org_id`,
+`user_id`, and security metadata from `~/.schift/ai-memory/config.json`.
+If upload returns `401` or `403`, the config is marked `revoked_or_invalid` and
+the event is queued. To force local queue-only mode:
 
 ```bash
 export SCHIFT_AI_MEMORY_UPLOAD=0

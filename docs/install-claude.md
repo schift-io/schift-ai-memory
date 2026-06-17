@@ -13,7 +13,9 @@ npx @schift-io/ai-memory claude-code-settings --print
 
 Review the output before merging it into `~/.claude/settings.json`.
 The hook commands read `~/.schift/ai-memory/config.json`, upload summaries and
-metadata by default, and fall back to the local queue if upload fails.
+metadata by default, reuse cached identity/security metadata, and fall back to
+the local queue if upload fails. A `401` or `403` marks the config
+`revoked_or_invalid` without deleting the API key.
 
 ## Claude Desktop
 

@@ -5,7 +5,8 @@ that passed through an AI session.
 
 Default event upload:
 
-- Schift `/v1/auth/me` user/security metadata
+- cached Schift `org_id`, `user_id`, and security metadata when returned during
+  login
 - job title
 - job intent
 - status

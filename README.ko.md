@@ -21,7 +21,10 @@ collection: _daily_log
 - 브라우저 OAuth 로그인.
 - AI Memory 전용 API key. 일반 로그인 세션과 분리되어
   `~/.schift/ai-memory/config.json`에 저장됩니다.
-- 연결 완료 전 `/v1/auth/me` 검증.
+- 연결 완료 전 Schift bucket 접근으로 API key 검증.
+- OAuth code-exchange가 `org_id`, `user_id`, security metadata를 내려주면
+  로컬 config에 캐시합니다. hook은 매 세션마다 `/me`를 호출하지 않고 이
+  캐시를 사용합니다.
 - AI 작업 로그가 기본으로 `bucket: default`,
   `collection: _daily_log`에 저장되는 경로. Schift bucket 안에 `_daily_log`
   collection이 실제로 있으면 `collection_id`를 붙이고, 없으면 문서
@@ -75,8 +78,9 @@ npx -y schift-ai-memory init
 2. 브라우저에서 Schift OAuth 화면을 엽니다.
 3. 사용자가 로그인하고 AI Memory 접근을 승인합니다.
 4. callback code를 받아 AI Memory 전용 API key로 교환합니다.
-5. `/v1/auth/me`로 사용자와 security metadata를 확인합니다.
-6. `~/.schift/ai-memory/config.json`에 로컬 설정을 저장합니다.
+5. Schift bucket 접근으로 API key를 검증합니다.
+6. 반환된 `org_id`, `user_id`, security metadata와 refresh window를
+   `~/.schift/ai-memory/config.json`에 저장합니다.
 7. Claude Code 예시 설정을
    `~/.claude/settings.schift-ai-memory.example.json`에 생성합니다.
 8. Codex plugin과 MCP처럼 host tool 쪽에서 설치해야 하는 명령을 출력합니다.
@@ -172,6 +176,8 @@ SCHIFT_COLLECTION=_daily_log
 
 Codex/Claude hook은 `~/.schift/ai-memory/config.json`을 읽습니다. API key가
 있으면 기본으로 서버에 업로드하고, 실패하면 local queue로 fallback합니다.
+Schift가 `401` 또는 `403`을 반환하면 API key 자체는 지우지 않고 config
+상태를 `revoked_or_invalid`로 바꾸며 `last_upload_error`를 남깁니다.
 queue-only 모드가 필요하면 `SCHIFT_AI_MEMORY_UPLOAD=0`을 설정하면 됩니다.
 
 ## 무엇이 올라가나

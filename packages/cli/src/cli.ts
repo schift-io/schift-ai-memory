@@ -40,6 +40,10 @@ function collectionName(): string {
   return argValue("--collection") ?? process.env.SCHIFT_COLLECTION ?? "_daily_log";
 }
 
+function addHours(date: Date, hours: number): string {
+  return new Date(date.getTime() + hours * 60 * 60 * 1000).toISOString();
+}
+
 function apiBaseUrl(): string {
   return process.env.SCHIFT_API_BASE_URL ?? "https://api.schift.io";
 }
@@ -341,6 +345,9 @@ async function login() {
   if (!apiKey) throw new Error("OAuth response did not include an API key.");
   const api_key_verification = await verifyApiKey(apiKey);
   const me = await fetchOptionalMe();
+  const now = new Date();
+  const orgId = token.credential?.org_id ?? token.org?.id ?? null;
+  const userId = token.credential?.user_id ?? null;
   await atomicWriteJson(configPath(), {
     api_base_url: apiBaseUrl(),
     app_base_url: appBaseUrl(),
@@ -348,20 +355,32 @@ async function login() {
     key_preview: token.key_preview ?? null,
     bucket: companyBucket(),
     collection: collectionName(),
-    org_id: token.credential?.org_id ?? token.org?.id ?? null,
-    user_id: token.credential?.user_id ?? null,
+    identity: {
+      org_id: orgId,
+      user_id: userId,
+    },
+    org_id: orgId,
+    user_id: userId,
     api_key_verification,
     me,
     security: token.security ?? null,
-    created_at: new Date().toISOString(),
+    status: "connected",
+    verified_at: now.toISOString(),
+    refresh_after: addHours(now, 24),
+    created_at: now.toISOString(),
   });
   console.log(`[schift-ai-memory] connected ${configPath()}`);
   console.log(JSON.stringify({
     bucket: companyBucket(),
     collection: collectionName(),
+    identity: {
+      org_id: orgId,
+      user_id: userId,
+    },
     api_key_verification,
     me,
     security: token.security ?? null,
+    refresh_after: addHours(now, 24),
   }, null, 2));
 }
 

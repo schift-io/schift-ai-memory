@@ -22,7 +22,11 @@ After installation, the user gets:
 - Browser OAuth login to Schift.
 - A dedicated AI Memory API key stored locally at
   `~/.schift/ai-memory/config.json`.
-- `/v1/auth/me` verification before any connector is treated as connected.
+- API key verification against Schift bucket access before the connector is
+  treated as connected.
+- Cached `org_id`, `user_id`, and security metadata when the Schift OAuth code
+  exchange returns them. Hooks reuse this local cache instead of calling `/me`
+  on every AI session.
 - Daily AI work records routed to `bucket: default` and
   `collection: _daily_log`. If a Schift bucket collection named `_daily_log`
   exists, uploads attach its `collection_id`; otherwise `_daily_log` is stored
@@ -76,8 +80,9 @@ This command:
 2. Opens Schift OAuth in your browser.
 3. Lets you sign in and approve AI Memory access.
 4. Receives the callback and exchanges it for a dedicated API key.
-5. Calls `/v1/auth/me` to verify the user and security metadata.
-6. Writes local configuration to `~/.schift/ai-memory/config.json`.
+5. Verifies the API key against Schift bucket access.
+6. Caches returned `org_id`, `user_id`, security metadata, and a refresh window
+   in `~/.schift/ai-memory/config.json`.
 7. Writes a Claude Code settings example to
    `~/.claude/settings.schift-ai-memory.example.json`.
 8. Prints the Codex plugin and MCP commands that still need to be installed by
@@ -173,7 +178,9 @@ SCHIFT_COLLECTION=_daily_log
 
 Codex and Claude hooks read `~/.schift/ai-memory/config.json`. When the config
 contains an API key, hooks upload by default and use the local queue as a
-fallback. Set `SCHIFT_AI_MEMORY_UPLOAD=0` to force queue-only mode.
+fallback. If Schift returns `401` or `403`, the hook preserves the API key but
+marks the config as `revoked_or_invalid` and records `last_upload_error` so the
+user can reconnect. Set `SCHIFT_AI_MEMORY_UPLOAD=0` to force queue-only mode.
 
 ## What Gets Uploaded
 

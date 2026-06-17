@@ -4,10 +4,34 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   AiMemorySource,
+  atomicWriteJson,
   createAiMemoryEvent,
   enqueueEvent,
   uploadEvent,
 } from "@schift-io/ai-memory-core";
+
+interface LocalConfig {
+  api_base_url?: string;
+  api_key?: string;
+  bucket?: string;
+  collection?: string;
+  identity?: {
+    org_id?: string | null;
+    user_id?: string | null;
+  };
+  org_id?: string | null;
+  user_id?: string | null;
+  security?: unknown;
+  verified_at?: string;
+  refresh_after?: string;
+  status?: string;
+  last_upload_error?: {
+    status: number;
+    error?: string;
+    checked_at: string;
+  };
+  [key: string]: unknown;
+}
 
 function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -39,13 +63,43 @@ function queueDir(): string {
   return process.env.SCHIFT_AI_MEMORY_QUEUE_DIR ?? join(homedir(), ".schift", "ai-memory", "queue");
 }
 
-async function readLocalConfig(): Promise<Record<string, unknown>> {
-  const path = process.env.SCHIFT_AI_MEMORY_CONFIG ?? join(homedir(), ".schift", "ai-memory", "config.json");
+function configPath(): string {
+  return process.env.SCHIFT_AI_MEMORY_CONFIG ?? join(homedir(), ".schift", "ai-memory", "config.json");
+}
+
+async function readLocalConfig(): Promise<LocalConfig> {
   try {
-    return JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+    return JSON.parse(await readFile(configPath(), "utf8")) as LocalConfig;
   } catch {
     return {};
   }
+}
+
+function identityOrgId(config: LocalConfig): string | undefined {
+  return stringValue(config.identity?.org_id) ?? stringValue(config.org_id);
+}
+
+function identityUserId(config: LocalConfig): string | undefined {
+  return stringValue(config.identity?.user_id) ?? stringValue(config.user_id);
+}
+
+function refreshDue(config: LocalConfig): boolean {
+  if (!config.refresh_after) return false;
+  const timestamp = Date.parse(config.refresh_after);
+  return Number.isFinite(timestamp) && timestamp <= Date.now();
+}
+
+async function markConfigAuthInvalid(config: LocalConfig, status: number, error?: string): Promise<void> {
+  if (!config.api_key) return;
+  await atomicWriteJson(configPath(), {
+    ...config,
+    status: "revoked_or_invalid",
+    last_upload_error: {
+      status,
+      error,
+      checked_at: new Date().toISOString(),
+    },
+  });
 }
 
 async function main() {
@@ -72,12 +126,12 @@ async function main() {
     process.env.SCHIFT_ORG_ID ??
     stringValue(payload.org_id) ??
     stringValue(payload.orgId) ??
-    stringValue(config.org_id);
+    identityOrgId(config);
   const userId =
     process.env.SCHIFT_USER_ID ??
     stringValue(payload.user_id) ??
     stringValue(payload.userId) ??
-    stringValue(config.user_id);
+    identityUserId(config);
 
   const event = createAiMemoryEvent({
     source,
@@ -106,7 +160,12 @@ async function main() {
         has_api_key: Boolean(config.api_key),
         has_org_id: Boolean(orgId),
         has_user_id: Boolean(userId),
+        config_status: stringValue(config.status) ?? "unknown",
+        refresh_due: refreshDue(config),
       },
+      cached_security: config.security ?? null,
+      security_verified_at: config.verified_at,
+      security_refresh_after: config.refresh_after,
     },
   });
 
@@ -117,6 +176,9 @@ async function main() {
     if (result.ok) {
       console.error(`[schift-ai-memory-hooks] uploaded ${result.id}`);
       return;
+    }
+    if (result.status === 401 || result.status === 403) {
+      await markConfigAuthInvalid(config, result.status, result.error);
     }
     console.error(`[schift-ai-memory-hooks] upload failed: ${result.status} ${result.error ?? ""}`);
   }

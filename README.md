@@ -12,8 +12,9 @@ npx -y schift-ai-memory init
 ```
 
 This opens Schift in your browser, signs you in, creates a dedicated AI Memory
-API key, verifies it with `/v1/auth/me`, writes local configuration, creates a
-Claude Code settings example, and prints the remaining host-specific commands.
+API key, verifies the key against Schift bucket access, caches returned
+identity/security metadata locally, creates a Claude Code settings example, and
+prints the remaining host-specific commands.
 
 Local Schift config is stored under:
 
@@ -33,6 +34,8 @@ collection: _daily_log
 - A local installer CLI for Codex, Claude Code, Claude Desktop, Cursor, and MCP.
 - OAuth-based connection to your Schift account.
 - A dedicated API key for AI memory upload, separate from your normal login.
+- Cached `org_id`, `user_id`, and security metadata when Schift returns them at
+  login. Hooks do not call `/me` on every session.
 - Metadata-first daily work logs in Schift.
 - Conservative upload policy: summaries and metadata by default, raw transcripts off.
 - Redaction for common secrets and local machine paths before upload.
