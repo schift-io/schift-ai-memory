@@ -1,6 +1,6 @@
 {
   "name": "schift-ai-memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "User-installed Schift AI memory collector: CLI, MCP server, hooks, and agent plugins.",
   "type": "module",
@@ -8,9 +8,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace @schift-io/ai-memory-core && npm run build --workspace @schift-io/ai-memory && npm run build --workspace @schift-io/ai-memory-hooks && npm run build --workspace @schift-io/ai-memory-mcp",
-    "lint": "npm run lint --workspace @schift-io/ai-memory-core && npm run lint --workspace @schift-io/ai-memory && npm run lint --workspace @schift-io/ai-memory-hooks && npm run lint --workspace @schift-io/ai-memory-mcp",
-    "test": "npm run test --workspace @schift-io/ai-memory-core && npm run test --workspace @schift-io/ai-memory && npm run test --workspace @schift-io/ai-memory-hooks && npm run test --workspace @schift-io/ai-memory-mcp",
+    "build": "npm run build --workspace @schift-io/ai-memory-core && npm run build --workspace @schift-io/ai-memory && npm run build --workspace schift-ai-memory && npm run build --workspace @schift-io/ai-memory-hooks && npm run build --workspace @schift-io/ai-memory-mcp",
+    "lint": "npm run lint --workspace @schift-io/ai-memory-core && npm run lint --workspace @schift-io/ai-memory && npm run lint --workspace schift-ai-memory && npm run lint --workspace @schift-io/ai-memory-hooks && npm run lint --workspace @schift-io/ai-memory-mcp",
+    "test": "npm run test --workspace @schift-io/ai-memory-core && npm run test --workspace @schift-io/ai-memory && npm run test --workspace schift-ai-memory && npm run test --workspace @schift-io/ai-memory-hooks && npm run test --workspace @schift-io/ai-memory-mcp",
     "pack:dry": "npm pack --workspaces --dry-run"
   },
   "keywords": [
@@ -26,6 +26,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/schift-io/schift-ai-memory.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=18"

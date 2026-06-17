@@ -1,6 +1,6 @@
 {
   "name": "@schift-io/ai-memory-hooks",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lifecycle hook commands for queueing Schift AI Memory events.",
   "type": "module",
   "bin": {
@@ -24,7 +24,7 @@
     "url": "git+https://github.com/schift-io/schift-ai-memory.git",
     "directory": "packages/hooks"
   },
-  "dependencies": {
-    "@schift-io/ai-memory-core": "0.1.0"
+  "publishConfig": {
+    "access": "public"
   }
 }

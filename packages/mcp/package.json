@@ -1,6 +1,6 @@
 {
   "name": "@schift-io/ai-memory-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server component for Schift AI Memory.",
   "type": "module",
   "bin": {
@@ -37,6 +37,9 @@
     "type": "git",
     "url": "git+https://github.com/schift-io/schift-ai-memory.git",
     "directory": "packages/mcp"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.4.0",
