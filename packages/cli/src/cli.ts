@@ -19,15 +19,16 @@ function printHelp() {
   console.log(`schift-ai-memory
 
 Usage:
-  schift-ai-memory init [--print] [--bucket <company-bucket>]
+  schift-ai-memory init [--print] [--no-login] [--bucket <company-bucket>]
   schift-ai-memory login [--bucket default] [--collection _daily_log]
   schift-ai-memory me
   schift-ai-memory codex-marketplace
   schift-ai-memory claude-code-settings [--bucket <company-bucket>]
   schift-ai-memory metadata-example
 
-The default init flow is conservative: summaries + metadata only, with hooks
-and raw transcript capture left opt-in.
+The default init flow connects OAuth, writes a Claude Code settings example,
+and prints the remaining host-specific install commands. Use --print for a
+machine-readable install plan.
 `);
 }
 
@@ -98,9 +99,9 @@ async function writeClaudeCodeSettings() {
   console.log("[schift-ai-memory] review and merge this into ~/.claude/settings.json when ready.");
 }
 
-function printInit() {
+function initPlan() {
   const bucket = companyBucket();
-  console.log(JSON.stringify({
+  return {
     product: "Schift AI Memory",
     company_bucket: bucket,
     collection: collectionName(),
@@ -123,7 +124,34 @@ function printInit() {
         },
       },
     },
-  }, null, 2));
+  };
+}
+
+function printInit() {
+  console.log(JSON.stringify(initPlan(), null, 2));
+}
+
+async function init() {
+  const plan = initPlan();
+  console.log("[schift-ai-memory] initializing AI Memory");
+  console.log(`[schift-ai-memory] route bucket=${plan.company_bucket} collection=${plan.collection}`);
+  console.log("[schift-ai-memory] policy summary_metadata_only; raw transcript capture is off by default");
+
+  if (hasFlag("--no-login")) {
+    console.log("[schift-ai-memory] skipped OAuth login because --no-login was set");
+  } else {
+    await login();
+  }
+
+  await writeClaudeCodeSettings();
+
+  console.log("[schift-ai-memory] Codex plugin command:");
+  console.log(codexMarketplaceCommand());
+  console.log("[schift-ai-memory] MCP server command:");
+  console.log("npx -y @schift-io/ai-memory-mcp");
+  console.log("[schift-ai-memory] Cursor MCP config is available with:");
+  console.log("npx -y schift-ai-memory init --print");
+  console.log("[schift-ai-memory] done");
 }
 
 function metadataExample() {
@@ -288,7 +316,11 @@ async function main() {
     return;
   }
   if (command === "init") {
-    printInit();
+    if (hasFlag("--print")) {
+      printInit();
+      return;
+    }
+    await init();
     return;
   }
   if (command === "login") {

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { readFile, mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { describe, it } from "node:test";
 
@@ -7,12 +10,34 @@ const execFileAsync = promisify(execFile);
 
 describe("schift-ai-memory CLI", () => {
   it("prints an install plan for supported harnesses", async () => {
-    const { stdout } = await execFileAsync("node", ["dist/cli.js", "init", "--bucket", "company:room821"]);
+    const { stdout } = await execFileAsync("node", ["dist/cli.js", "init", "--print", "--bucket", "company:room821"]);
     const plan = JSON.parse(stdout);
     assert.equal(plan.company_bucket, "company:room821");
     assert.equal(plan.collection, "_daily_log");
     assert.match(plan.install.codex, /codex plugin marketplace add/);
     assert.equal(plan.upload_policy, "summary_metadata_only");
+  });
+
+  it("runs init as a guided setup when login is skipped", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "schift-ai-memory-cli-"));
+    const output = join(dir, "claude-settings.json");
+    const { stdout } = await execFileAsync("node", [
+      "dist/cli.js",
+      "init",
+      "--no-login",
+      "--bucket",
+      "company:room821",
+      "--output",
+      output,
+    ]);
+    assert.match(stdout, /initializing AI Memory/);
+    assert.match(stdout, /skipped OAuth login/);
+    assert.match(stdout, /wrote/);
+    assert.match(stdout, /codex plugin marketplace add/);
+
+    const settings = JSON.parse(await readFile(output, "utf8"));
+    assert.equal(settings.env.SCHIFT_COMPANY_BUCKET, "company:room821");
+    assert.equal(settings.env.SCHIFT_COLLECTION, "_daily_log");
   });
 
   it("prints a metadata example", async () => {

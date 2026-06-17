@@ -65,7 +65,7 @@ References:
 Recommended:
 
 ```bash
-npx -y schift-ai-memory login
+npx -y schift-ai-memory init
 ```
 
 This command:
@@ -76,27 +76,37 @@ This command:
 4. Receives the callback and exchanges it for a dedicated API key.
 5. Calls `/v1/auth/me` to verify the user and security metadata.
 6. Writes local configuration to `~/.schift/ai-memory/config.json`.
+7. Writes a Claude Code settings example to
+   `~/.claude/settings.schift-ai-memory.example.json`.
+8. Prints the Codex plugin and MCP commands that still need to be installed by
+   the host tool.
 
 Use a custom route only when needed:
 
 ```bash
-npx -y schift-ai-memory login --bucket default --collection _daily_log
+npx -y schift-ai-memory init --bucket default --collection _daily_log
 ```
 
 The scoped package form also works:
 
 ```bash
-npx -y --package @schift-io/ai-memory schift-ai-memory login
+npx -y --package @schift-io/ai-memory schift-ai-memory init
+```
+
+If you only want to connect OAuth without writing host settings:
+
+```bash
+npx -y schift-ai-memory login
 ```
 
 ## Preview the Install Plan
 
 ```bash
-npx -y schift-ai-memory init
+npx -y schift-ai-memory init --print
 ```
 
 This prints the Codex, Claude, Claude Desktop, Cursor, and MCP configuration
-you can apply.
+plan without opening OAuth or writing files.
 
 ## Codex
 
@@ -157,7 +167,7 @@ SCHIFT_DEFAULT_BUCKET=default
 SCHIFT_COLLECTION=_daily_log
 ```
 
-`schift-ai-memory init` prints a Cursor-compatible MCP config block.
+`schift-ai-memory init --print` prints a Cursor-compatible MCP config block.
 
 ## What Gets Uploaded
 

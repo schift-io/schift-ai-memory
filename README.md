@@ -8,11 +8,14 @@ Installable AI work memory for Schift users.
 ## Quick Start
 
 ```bash
-npx -y schift-ai-memory login
+npx -y schift-ai-memory init
 ```
 
 This opens Schift in your browser, signs you in, creates a dedicated AI Memory
-API key, verifies it with `/v1/auth/me`, and stores local configuration under:
+API key, verifies it with `/v1/auth/me`, writes local configuration, creates a
+Claude Code settings example, and prints the remaining host-specific commands.
+
+Local Schift config is stored under:
 
 ```text
 ~/.schift/ai-memory/config.json
@@ -54,8 +57,9 @@ See the full comparison:
 ## Commands
 
 ```bash
-npx -y schift-ai-memory login
 npx -y schift-ai-memory init
+npx -y schift-ai-memory init --print
+npx -y schift-ai-memory login
 npx -y schift-ai-memory codex-marketplace
 npx -y schift-ai-memory claude-code-settings --print
 npx -y schift-ai-memory metadata-example

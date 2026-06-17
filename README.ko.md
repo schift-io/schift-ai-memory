@@ -64,7 +64,7 @@ Schift AI Memory는 범위가 더 좁고 운영 로그에 가깝습니다.
 권장 시작 명령:
 
 ```bash
-npx -y schift-ai-memory login
+npx -y schift-ai-memory init
 ```
 
 이 명령은 다음 순서로 동작합니다.
@@ -75,26 +75,36 @@ npx -y schift-ai-memory login
 4. callback code를 받아 AI Memory 전용 API key로 교환합니다.
 5. `/v1/auth/me`로 사용자와 security metadata를 확인합니다.
 6. `~/.schift/ai-memory/config.json`에 로컬 설정을 저장합니다.
+7. Claude Code 예시 설정을
+   `~/.claude/settings.schift-ai-memory.example.json`에 생성합니다.
+8. Codex plugin과 MCP처럼 host tool 쪽에서 설치해야 하는 명령을 출력합니다.
 
 저장 위치를 명시하고 싶으면 이렇게 실행합니다.
 
 ```bash
-npx -y schift-ai-memory login --bucket default --collection _daily_log
+npx -y schift-ai-memory init --bucket default --collection _daily_log
 ```
 
 scoped package 형태도 사용할 수 있습니다.
 
 ```bash
-npx -y --package @schift-io/ai-memory schift-ai-memory login
+npx -y --package @schift-io/ai-memory schift-ai-memory init
+```
+
+OAuth 연결만 하고 host 설정 파일은 만들고 싶지 않다면 다음을 씁니다.
+
+```bash
+npx -y schift-ai-memory login
 ```
 
 ## 설치 계획 미리 보기
 
 ```bash
-npx -y schift-ai-memory init
+npx -y schift-ai-memory init --print
 ```
 
-Codex, Claude, Claude Desktop, Cursor, MCP에 넣을 설정을 JSON으로 보여줍니다.
+OAuth를 열거나 파일을 쓰지 않고 Codex, Claude, Claude Desktop, Cursor, MCP에
+넣을 설정 계획만 JSON으로 보여줍니다.
 
 ## Codex
 
@@ -155,7 +165,8 @@ SCHIFT_DEFAULT_BUCKET=default
 SCHIFT_COLLECTION=_daily_log
 ```
 
-`schift-ai-memory init`은 Cursor에 넣을 수 있는 MCP 설정 블록도 출력합니다.
+`schift-ai-memory init --print`는 Cursor에 넣을 수 있는 MCP 설정 블록도
+출력합니다.
 
 ## 무엇이 올라가나
 
