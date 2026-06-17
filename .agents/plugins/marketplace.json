@@ -1,0 +1,23 @@
+{
+  "name": "schift",
+  "interface": {
+    "displayName": "Schift"
+  },
+  "plugins": [
+    {
+      "name": "schift-ai-memory",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/schift-io/schift-ai-memory.git",
+        "path": "./plugins/schift-ai-memory",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
+

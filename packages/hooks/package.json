@@ -1,0 +1,30 @@
+{
+  "name": "@schift-io/ai-memory-hooks",
+  "version": "0.1.0",
+  "description": "Lifecycle hook commands for queueing Schift AI Memory events.",
+  "type": "module",
+  "bin": {
+    "schift-ai-memory-hooks": "dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "lint": "tsc --noEmit",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test test/**/*.test.mjs"
+  },
+  "author": "Schift <hello@schift.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/schift-io/schift-ai-memory.git",
+    "directory": "packages/hooks"
+  },
+  "dependencies": {
+    "@schift-io/ai-memory-core": "0.1.0"
+  }
+}

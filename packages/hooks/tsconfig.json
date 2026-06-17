@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "paths": {
+      "@schift-io/ai-memory-core": ["../core/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

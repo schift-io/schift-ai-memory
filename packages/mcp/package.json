@@ -1,0 +1,42 @@
+{
+  "name": "@schift-io/ai-memory-mcp",
+  "version": "0.1.0",
+  "description": "MCP server component for Schift AI Memory.",
+  "type": "module",
+  "bin": {
+    "schift-ai-memory-mcp": "dist/cli.js",
+    "schift-mcp": "dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "scripts"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit",
+    "prepack": "npm run build",
+    "smoke:memory": "npm run build && node scripts/live-memory-smoke.mjs",
+    "test": "npm run build && node --test test/**/*.test.mjs"
+  },
+  "keywords": ["mcp", "rag", "memory", "schift", "claude", "cursor", "codex"],
+  "author": "Schift <hello@schift.io>",
+  "license": "MIT",
+  "homepage": "https://schift.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/schift-io/schift-ai-memory.git",
+    "directory": "packages/mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

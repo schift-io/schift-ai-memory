@@ -1,0 +1,30 @@
+{
+  "name": "@schift-io/ai-memory",
+  "version": "0.1.0",
+  "description": "Installer CLI for Schift AI Memory across Codex, Claude, Cursor, and MCP.",
+  "type": "module",
+  "bin": {
+    "schift-ai-memory": "dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "lint": "tsc --noEmit",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test test/**/*.test.mjs"
+  },
+  "author": "Schift <hello@schift.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/schift-io/schift-ai-memory.git",
+    "directory": "packages/cli"
+  },
+  "dependencies": {
+    "@schift-io/ai-memory-core": "0.1.0"
+  }
+}

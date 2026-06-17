@@ -1,0 +1,11 @@
+{
+  "schift-ai-memory": {
+    "command": "npx",
+    "args": ["-y", "@schift-io/ai-memory-mcp"],
+    "env": {
+      "SCHIFT_API_KEY": "${SCHIFT_API_KEY}",
+      "SCHIFT_DEFAULT_BUCKET": "${SCHIFT_COMPANY_BUCKET}"
+    }
+  }
+}
+

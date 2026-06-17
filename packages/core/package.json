@@ -1,0 +1,24 @@
+{
+  "name": "@schift-io/ai-memory-core",
+  "version": "0.1.0",
+  "description": "Shared metadata, redaction, queue, and upload helpers for Schift AI Memory.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "lint": "tsc --noEmit",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test test/**/*.test.mjs"
+  },
+  "author": "Schift <hello@schift.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/schift-io/schift-ai-memory.git",
+    "directory": "packages/core"
+  }
+}

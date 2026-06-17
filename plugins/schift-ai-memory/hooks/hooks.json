@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx -y @schift-io/ai-memory-hooks codex-session-start",
+            "timeout": 10,
+            "statusMessage": "Preparing Schift AI memory context"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx -y @schift-io/ai-memory-hooks codex-stop",
+            "timeout": 10,
+            "statusMessage": "Queueing Schift AI memory summary"
+          }
+        ]
+      }
+    ]
+  }
+}
+
