@@ -10,6 +10,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { validateUpstreamBearer } from "./http-auth.js";
 import { createServer, SchiftMcpConfig } from "./index.js";
+import { readMcpConfigFromEnv } from "./local-config.js";
 
 function argValue(name: string): string | undefined {
   const idx = process.argv.indexOf(name);
@@ -120,34 +121,16 @@ function printInitConfig() {
 }
 
 function readConfig(): SchiftMcpConfig {
-  const apiBaseUrl =
-    process.env.SCHIFT_API_BASE_URL ?? "https://api.schift.io";
-  const apiKey = process.env.SCHIFT_API_KEY;
-  if (!apiKey) {
-    console.error(
-      "[schift-mcp] SCHIFT_API_KEY is required. Set it in your MCP server config.",
-    );
+  try {
+    return readMcpConfigFromEnv() as SchiftMcpConfig;
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
-  const userId = process.env.SCHIFT_USER_ID;
-  const defaultBucket = process.env.SCHIFT_DEFAULT_BUCKET;
-  const memoryBuckets = process.env.SCHIFT_MEMORY_BUCKETS
-    ?.split(",")
-    .map((bucket) => bucket.trim())
-    .filter(Boolean);
-  return { apiBaseUrl, apiKey, userId, defaultBucket, memoryBuckets };
 }
 
 function readHttpConfig(apiKey: string): SchiftMcpConfig {
-  const apiBaseUrl =
-    process.env.SCHIFT_API_BASE_URL ?? "https://api.schift.io";
-  const userId = process.env.SCHIFT_USER_ID;
-  const defaultBucket = process.env.SCHIFT_DEFAULT_BUCKET;
-  const memoryBuckets = process.env.SCHIFT_MEMORY_BUCKETS
-    ?.split(",")
-    .map((bucket) => bucket.trim())
-    .filter(Boolean);
-  return { apiBaseUrl, apiKey, userId, defaultBucket, memoryBuckets };
+  return readMcpConfigFromEnv({ apiKey }) as SchiftMcpConfig;
 }
 
 async function runStdio() {

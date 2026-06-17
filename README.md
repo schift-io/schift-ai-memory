@@ -37,6 +37,8 @@ collection: _daily_log
 - Cached `org_id`, `user_id`, and security metadata when Schift returns them at
   login. Hooks do not call `/me` on every session.
 - Metadata-first daily work logs in Schift.
+- MCP search/fetch reads from the same local login config, so users can retrieve
+  what was uploaded without copying API keys into every MCP client.
 - Conservative upload policy: summaries and metadata by default, raw transcripts off.
 - Redaction for common secrets and local machine paths before upload.
 - A reusable package boundary for plugin marketplace distribution.

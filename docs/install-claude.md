@@ -30,5 +30,10 @@ bundles/claude-desktop/manifest.json
 For local development, run the MCP server directly:
 
 ```bash
-SCHIFT_API_KEY=sk-... npx @schift-io/ai-memory-mcp
+npx @schift-io/ai-memory-mcp
 ```
+
+After `schift-ai-memory login`, the MCP server reads
+`~/.schift/ai-memory/config.json` and can retrieve uploaded logs with `search`
+and `fetch`. Set `SCHIFT_API_KEY` only when you intentionally want to override
+the local login config.

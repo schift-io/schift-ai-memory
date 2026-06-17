@@ -121,7 +121,6 @@ function initPlan() {
             command: "npx",
             args: ["-y", "@schift-io/ai-memory-mcp"],
             env: {
-              SCHIFT_API_KEY: "sk-...",
               SCHIFT_DEFAULT_BUCKET: bucket,
               SCHIFT_COLLECTION: collectionName(),
             },

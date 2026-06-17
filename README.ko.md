@@ -34,6 +34,8 @@ collection: _daily_log
 - 업로드 전 일반적인 secret과 로컬 머신 path redaction.
 - Codex plugin, Claude Code hook, Claude Desktop MCP, Cursor MCP, 직접 MCP
   실행까지 이어지는 설치 표면.
+- MCP를 통한 조회: `search`, `fetch`, `schift_search`,
+  `schift_memory_search`가 로그인 후 같은 Schift bucket을 읽습니다.
 
 ## Honcho와 뭐가 다른가
 
@@ -166,13 +168,15 @@ npx -y @schift-io/ai-memory-mcp
 최소 환경 변수:
 
 ```text
-SCHIFT_API_KEY=sk-...
 SCHIFT_DEFAULT_BUCKET=default
 SCHIFT_COLLECTION=_daily_log
 ```
 
-`schift-ai-memory init --print`는 Cursor에 넣을 수 있는 MCP 설정 블록도
-출력합니다.
+`schift-ai-memory login` 또는 `schift-ai-memory init` 이후에는 MCP package가
+기본으로 `~/.schift/ai-memory/config.json`을 읽습니다. 그래서 로컬 MCP
+client 설정마다 `SCHIFT_API_KEY`를 복사할 필요가 없습니다. 명시적인 MCP env
+값은 여전히 로컬 login config보다 우선합니다. `schift-ai-memory init --print`는
+Cursor에 넣을 수 있는 MCP 설정 블록도 출력합니다.
 
 Codex/Claude hook은 `~/.schift/ai-memory/config.json`을 읽습니다. API key가
 있으면 기본으로 서버에 업로드하고, 실패하면 local queue로 fallback합니다.

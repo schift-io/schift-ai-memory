@@ -36,6 +36,8 @@ After installation, the user gets:
 - Redaction of common secrets and strict local machine paths before upload.
 - Install surfaces for Codex plugins, Claude Code hooks, Claude Desktop MCP,
   Cursor MCP, and direct MCP usage.
+- Retrieval through MCP: `search`, `fetch`, `schift_search`, and
+  `schift_memory_search` can read the same Schift bucket after login.
 
 ## How Is This Different from Honcho?
 
@@ -169,12 +171,15 @@ npx -y @schift-io/ai-memory-mcp
 Minimum MCP environment:
 
 ```text
-SCHIFT_API_KEY=sk-...
 SCHIFT_DEFAULT_BUCKET=default
 SCHIFT_COLLECTION=_daily_log
 ```
 
-`schift-ai-memory init --print` prints a Cursor-compatible MCP config block.
+After `schift-ai-memory login` or `schift-ai-memory init`, the MCP package reads
+`~/.schift/ai-memory/config.json` by default, so `SCHIFT_API_KEY` does not need
+to be duplicated into each local MCP client config. Explicit MCP env values
+still override the local login config. `schift-ai-memory init --print` prints a
+Cursor-compatible MCP config block.
 
 Codex and Claude hooks read `~/.schift/ai-memory/config.json`. When the config
 contains an API key, hooks upload by default and use the local queue as a

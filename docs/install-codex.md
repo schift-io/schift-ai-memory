@@ -29,3 +29,7 @@ the event is queued. To force local queue-only mode:
 ```bash
 export SCHIFT_AI_MEMORY_UPLOAD=0
 ```
+
+The MCP server also reads the same login config by default, so Codex can use
+MCP `search` and `fetch` against the user's Schift bucket without a separate
+API key copy in the Codex plugin config.
