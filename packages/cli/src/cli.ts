@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -189,6 +189,31 @@ function openBrowser(url: string) {
   child.unref();
 }
 
+function createCodeVerifier(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function codeChallengeForVerifier(verifier: string): string {
+  return createHash("sha256").update(verifier, "ascii").digest("base64url");
+}
+
+function findFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (address && typeof address === "object") {
+        const port = address.port;
+        server.close(() => resolve(port));
+        return;
+      }
+      server.close();
+      reject(new Error("Could not find a free loopback port."));
+    });
+    server.on("error", reject);
+  });
+}
+
 function readRequestUrl(req: IncomingMessage): URL {
   return new URL(req.url ?? "/", "http://127.0.0.1");
 }
@@ -223,26 +248,23 @@ function waitForOAuthCode(port: number, expectedState: string): Promise<string> 
   });
 }
 
-async function exchangeCodeForKey(code: string, redirectUri: string) {
-  const response = await fetch(`${apiBaseUrl().replace(/\/+$/, "")}/v1/oauth/token`, {
+async function exchangeCodeForKey(code: string, codeVerifier: string) {
+  const response = await fetch(`${apiBaseUrl().replace(/\/+$/, "")}/v1/auth/cli/code-exchange`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      grant_type: "authorization_code",
-      client_id: "schift-ai-memory-cli",
       code,
-      redirect_uri: redirectUri,
-      audience: "ai-memory",
-      bucket: companyBucket(),
-      collection: collectionName(),
+      code_verifier: codeVerifier,
     }),
   });
   if (!response.ok) {
-    throw new Error(`OAuth exchange failed: ${response.status} ${await response.text()}`);
+    throw new Error(`CLI code exchange failed: ${response.status} ${await response.text()}`);
   }
   return (await response.json()) as {
+    key?: string;
     api_key?: string;
     access_token?: string;
+    credential?: { api_key?: string };
     user?: Record<string, unknown>;
     security?: Record<string, unknown>;
   };
@@ -261,16 +283,49 @@ async function fetchMe(apiKey: string) {
   return (await response.json()) as Record<string, unknown>;
 }
 
+async function verifyApiKey(apiKey: string) {
+  const response = await fetch(`${apiBaseUrl().replace(/\/+$/, "")}/v1/buckets`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "X-Schift-Client": "ai-memory-cli",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`API key verification failed: ${response.status} ${await response.text()}`);
+  }
+  return {
+    status: "ok",
+    endpoint: "/v1/buckets",
+    checked_at: new Date().toISOString(),
+  };
+}
+
+async function fetchOptionalMe() {
+  const authToken = process.env.SCHIFT_AUTH_TOKEN;
+  if (!authToken) {
+    return {
+      status: "skipped",
+      reason: "SCHIFT_AUTH_TOKEN not set; code exchange returns a Schift API key, not a user JWT.",
+    };
+  }
+  return {
+    status: "ok",
+    response: await fetchMe(authToken),
+  };
+}
+
 async function login() {
-  const port = Number.parseInt(argValue("--port") ?? "17945", 10);
-  const state = randomBytes(16).toString("base64url");
-  const redirectUri = `http://127.0.0.1:${port}/callback`;
-  const authorizeUrl = new URL("/oauth/authorize", appBaseUrl());
-  authorizeUrl.searchParams.set("client_id", "schift-ai-memory-cli");
-  authorizeUrl.searchParams.set("response_type", "code");
-  authorizeUrl.searchParams.set("redirect_uri", redirectUri);
-  authorizeUrl.searchParams.set("scope", "ai_memory:read ai_memory:write");
+  const port = argValue("--port")
+    ? Number.parseInt(argValue("--port") ?? "", 10)
+    : await findFreePort();
+  const state = randomBytes(16).toString("hex");
+  const codeVerifier = createCodeVerifier();
+  const codeChallenge = codeChallengeForVerifier(codeVerifier);
+  const authorizeUrl = new URL("/auth/cli", appBaseUrl());
+  authorizeUrl.searchParams.set("port", String(port));
   authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("code_challenge", codeChallenge);
+  authorizeUrl.searchParams.set("code_challenge_method", "S256");
   authorizeUrl.searchParams.set("bucket", companyBucket());
   authorizeUrl.searchParams.set("collection", collectionName());
 
@@ -278,16 +333,18 @@ async function login() {
   openBrowser(authorizeUrl.toString());
   console.log("[schift-ai-memory] waiting for browser login...");
   const code = await codePromise;
-  const token = await exchangeCodeForKey(code, redirectUri);
-  const apiKey = token.api_key ?? token.access_token;
+  const token = await exchangeCodeForKey(code, codeVerifier);
+  const apiKey = token.credential?.api_key ?? token.api_key ?? token.key ?? token.access_token;
   if (!apiKey) throw new Error("OAuth response did not include an API key.");
-  const me = await fetchMe(apiKey);
+  const api_key_verification = await verifyApiKey(apiKey);
+  const me = await fetchOptionalMe();
   await atomicWriteJson(configPath(), {
     api_base_url: apiBaseUrl(),
     app_base_url: appBaseUrl(),
     api_key: apiKey,
     bucket: companyBucket(),
     collection: collectionName(),
+    api_key_verification,
     me,
     security: token.security ?? null,
     created_at: new Date().toISOString(),
@@ -296,6 +353,7 @@ async function login() {
   console.log(JSON.stringify({
     bucket: companyBucket(),
     collection: collectionName(),
+    api_key_verification,
     me,
     security: token.security ?? null,
   }, null, 2));

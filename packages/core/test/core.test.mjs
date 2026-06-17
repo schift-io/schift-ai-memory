@@ -62,16 +62,25 @@ describe("AI memory core", () => {
     }
   });
 
-  it("uploads redacted events to the Schift ingest endpoint", async () => {
+  it("uploads redacted events to the Schift bucket upload endpoint", async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (url, init = {}) => {
-      assert.equal(String(url), "https://api.test/v1/ai-memory/events");
       const headers = new Headers(init.headers);
       assert.equal(headers.get("Authorization"), "Bearer sk-test");
       assert.equal(headers.get("X-Schift-Client"), "ai-memory");
-      const body = JSON.parse(init.body);
+      if (String(url) === "https://api.test/v1/buckets") {
+        return Response.json([{ id: "bucket_1", name: "default" }], { status: 200 });
+      }
+      assert.equal(String(url), "https://api.test/v1/buckets/bucket_1/upload");
+      assert.ok(init.body instanceof FormData);
+      const metadata = JSON.parse(String(init.body.get("metadata")));
+      assert.equal(metadata.collection, "_daily_log");
+      assert.equal(metadata.source, "codex");
+      const file = init.body.get("files");
+      assert.ok(file instanceof Blob);
+      const body = JSON.parse(await file.text());
       assert.equal(body.summary, "token [REDACTED_OPENAI_KEY]");
-      return Response.json({ id: "evt_1" }, { status: 201 });
+      return Response.json({ jobs: [{ job_id: "job_1" }] }, { status: 201 });
     };
 
     try {
@@ -81,11 +90,13 @@ describe("AI memory core", () => {
         event: createAiMemoryEvent({
           source: "codex",
           harness: "codex-plugin",
+          company_bucket: "default",
+          collection: "_daily_log",
           summary: "token sk-abc1234567890abc1234567890abc",
           job: { type: "coding", title: "Upload", status: "completed" },
         }),
       });
-      assert.deepEqual(result, { ok: true, status: 201, id: "evt_1" });
+      assert.deepEqual(result, { ok: true, status: 201, id: "job_1" });
     } finally {
       globalThis.fetch = originalFetch;
     }

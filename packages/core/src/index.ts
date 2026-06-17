@@ -152,17 +152,53 @@ export async function uploadEvent(options: {
   endpoint?: string;
 }): Promise<UploadResult> {
   const baseUrl = options.apiBaseUrl.replace(/\/+$/, "");
-  const endpoint = options.endpoint ?? "/v1/ai-memory/events";
+  const event = redactEvent(options.event);
+  const bucketName = event.company_bucket ?? "default";
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}${endpoint}`, {
+    response = await fetch(`${baseUrl}/v1/buckets`, {
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`,
+        "X-Schift-Client": "ai-memory",
+      },
+    });
+  } catch (error) {
+    return { ok: false, status: 0, error: String(error).slice(0, 200) };
+  }
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    return { ok: false, status: response.status, error: detail.slice(0, 300) };
+  }
+
+  const buckets = (await response.json().catch(() => [])) as Array<{ id?: unknown; name?: unknown }>;
+  const bucket = buckets.find((entry) => entry.name === bucketName || entry.id === bucketName);
+  const bucketId = typeof bucket?.id === "string" ? bucket.id : bucketName;
+  const filename = `${event.collection ?? "_daily_log"}-${event.created_at.slice(0, 10)}-${event.id}.json`;
+  const metadata: Record<string, string> = {
+    source: event.source,
+    harness: event.harness,
+    event_kind: event.event_kind,
+    collection: event.collection ?? "_daily_log",
+    job_type: event.job.type,
+    job_status: event.job.status,
+    job_title: event.job.title,
+  };
+  if (event.session_id) metadata.session_id = event.session_id;
+  if (event.job.repo) metadata.repo = event.job.repo;
+  if (event.job.branch) metadata.branch = event.job.branch;
+
+  const form = new FormData();
+  form.append("files", new Blob([JSON.stringify(event, null, 2)], { type: "application/json" }), filename);
+  form.append("metadata", JSON.stringify(metadata));
+
+  try {
+    response = await fetch(`${baseUrl}${options.endpoint ?? `/v1/buckets/${encodeURIComponent(bucketId)}/upload`}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${options.apiKey}`,
-        "Content-Type": "application/json",
         "X-Schift-Client": "ai-memory",
       },
-      body: JSON.stringify(redactEvent(options.event)),
+      body: form,
     });
   } catch (error) {
     return { ok: false, status: 0, error: String(error).slice(0, 200) };
@@ -174,10 +210,15 @@ export async function uploadEvent(options: {
   }
 
   const body = (await response.json().catch(() => ({}))) as { id?: unknown };
+  const jobId =
+    Array.isArray((body as { jobs?: unknown }).jobs) &&
+    typeof ((body as { jobs: Array<{ job_id?: unknown }> }).jobs[0]?.job_id) === "string"
+      ? (body as { jobs: Array<{ job_id: string }> }).jobs[0].job_id
+      : undefined;
   return {
     ok: true,
     status: response.status,
-    id: typeof body.id === "string" ? body.id : options.event.id,
+    id: typeof body.id === "string" ? body.id : jobId ?? options.event.id,
   };
 }
 

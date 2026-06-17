@@ -1,6 +1,6 @@
 {
   "name": "schift-ai-memory",
-  "version": "0.1.2",
+  "version": "0.1.5",
   "description": "npx-friendly installer CLI for Schift AI Memory.",
   "type": "module",
   "bin": {
