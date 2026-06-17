@@ -14,7 +14,10 @@ interface LocalConfig {
   api_base_url?: string;
   api_key?: string;
   bucket?: string;
+  bucket_id?: string;
   collection?: string;
+  collection_id?: string;
+  role_package_id?: string;
   identity?: {
     org_id?: string | null;
     user_id?: string | null;
@@ -172,7 +175,7 @@ async function main() {
   const apiKey = process.env.SCHIFT_API_KEY ?? stringValue(config.api_key);
   const apiBaseUrl = process.env.SCHIFT_API_BASE_URL ?? stringValue(config.api_base_url) ?? "https://api.schift.io";
   if (apiKey && process.env.SCHIFT_AI_MEMORY_UPLOAD !== "0") {
-    const result = await uploadEvent({ apiBaseUrl, apiKey, event });
+    const result = await uploadEvent({ apiBaseUrl, apiKey, event, collectionId: stringValue(config.collection_id) });
     if (result.ok) {
       console.error(`[schift-ai-memory-hooks] uploaded ${result.id}`);
       return;

@@ -7,6 +7,8 @@ import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { atomicWriteJson, createAiMemoryEvent } from "@schift-io/ai-memory-core";
 
+const CODING_AGENT_ROLE_PACKAGE_ID = "schift.coding-agent.default";
+
 function argValue(name: string): string | undefined {
   const idx = process.argv.indexOf(name);
   return idx >= 0 ? process.argv[idx + 1] : undefined;
@@ -315,6 +317,7 @@ async function exchangeCodeForKey(code: string, codeVerifier: string) {
     body: JSON.stringify({
       code,
       code_verifier: codeVerifier,
+      role_package_id: CODING_AGENT_ROLE_PACKAGE_ID,
     }),
   });
   if (!response.ok) {
@@ -326,6 +329,13 @@ async function exchangeCodeForKey(code: string, codeVerifier: string) {
     api_key?: string;
     access_token?: string;
     credential?: { api_key?: string; org_id?: string; user_id?: string };
+    defaults?: {
+      bucket?: string;
+      bucket_id?: string | null;
+      collection?: string;
+      collection_id?: string | null;
+      role_package_id?: string;
+    };
     org?: { id?: string };
     user?: Record<string, unknown>;
     security?: Record<string, unknown>;
@@ -556,13 +566,24 @@ async function login() {
   const now = new Date();
   const orgId = token.credential?.org_id ?? token.org?.id ?? null;
   const userId = token.credential?.user_id ?? null;
+  const defaults = token.defaults && typeof token.defaults === "object" ? token.defaults : {};
+  const bucket = typeof defaults.bucket === "string" && defaults.bucket ? defaults.bucket : companyBucket();
+  const bucketId = typeof defaults.bucket_id === "string" && defaults.bucket_id ? defaults.bucket_id : null;
+  const collection = typeof defaults.collection === "string" && defaults.collection ? defaults.collection : collectionName();
+  const collectionId = typeof defaults.collection_id === "string" && defaults.collection_id ? defaults.collection_id : null;
+  const rolePackageId = typeof defaults.role_package_id === "string" && defaults.role_package_id
+    ? defaults.role_package_id
+    : CODING_AGENT_ROLE_PACKAGE_ID;
   await atomicWriteJson(configPath(), {
     api_base_url: apiBaseUrl(),
     app_base_url: appBaseUrl(),
     api_key: apiKey,
     key_preview: token.key_preview ?? null,
-    bucket: companyBucket(),
-    collection: collectionName(),
+    bucket,
+    bucket_id: bucketId,
+    collection,
+    collection_id: collectionId,
+    role_package_id: rolePackageId,
     identity: {
       org_id: orgId,
       user_id: userId,
@@ -579,8 +600,9 @@ async function login() {
   });
   console.log(`[schift-ai-memory] connected ${configPath()}`);
   console.log(JSON.stringify({
-    bucket: companyBucket(),
-    collection: collectionName(),
+    bucket,
+    collection,
+    collection_id: collectionId,
     identity: {
       org_id: orgId,
       user_id: userId,

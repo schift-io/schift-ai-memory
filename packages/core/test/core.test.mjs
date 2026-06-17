@@ -109,4 +109,42 @@ describe("AI memory core", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("uses configured collection ids without listing collections", async () => {
+    const originalFetch = globalThis.fetch;
+    const urls = [];
+    globalThis.fetch = async (url, init = {}) => {
+      urls.push(String(url));
+      if (String(url) === "https://api.test/v1/buckets") {
+        return Response.json([{ id: "bucket_1", name: "default" }], { status: 200 });
+      }
+      assert.equal(String(url), "https://api.test/v1/buckets/bucket_1/upload");
+      assert.ok(init.body instanceof FormData);
+      assert.equal(init.body.get("collection_id"), "collection_from_login");
+      return Response.json({ jobs: [{ job_id: "job_1" }] }, { status: 201 });
+    };
+
+    try {
+      const result = await uploadEvent({
+        apiBaseUrl: "https://api.test",
+        apiKey: "sk-test",
+        collectionId: "collection_from_login",
+        event: createAiMemoryEvent({
+          source: "codex",
+          harness: "codex-plugin",
+          company_bucket: "default",
+          collection: "__schift_ai_daily_log",
+          job: { type: "coding", title: "Upload", status: "completed" },
+        }),
+      });
+
+      assert.deepEqual(result, { ok: true, status: 201, id: "job_1" });
+      assert.deepEqual(urls, [
+        "https://api.test/v1/buckets",
+        "https://api.test/v1/buckets/bucket_1/upload",
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

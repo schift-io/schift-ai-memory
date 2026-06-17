@@ -1,6 +1,6 @@
 {
   "name": "@schift-io/ai-memory-mcp",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "MCP server component for Schift AI Memory.",
   "type": "module",
   "bin": {

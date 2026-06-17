@@ -149,6 +149,7 @@ export async function uploadEvent(options: {
   apiBaseUrl: string;
   apiKey: string;
   event: AiMemoryEvent;
+  collectionId?: string;
   endpoint?: string;
 }): Promise<UploadResult> {
   const baseUrl = options.apiBaseUrl.replace(/\/+$/, "");
@@ -174,24 +175,26 @@ export async function uploadEvent(options: {
   const bucket = buckets.find((entry) => entry.name === bucketName || entry.id === bucketName);
   const bucketId = typeof bucket?.id === "string" ? bucket.id : bucketName;
   const collectionName = event.collection ?? "__schift_ai_daily_log";
-  let collectionId: string | undefined;
-  try {
-    const collectionResponse = await fetch(`${baseUrl}/v1/buckets/${encodeURIComponent(bucketId)}/collections`, {
-      headers: {
-        Authorization: `Bearer ${options.apiKey}`,
-        "X-Schift-Client": "ai-memory",
-      },
-    });
-    if (collectionResponse.ok) {
-      const collections = (await collectionResponse.json().catch(() => [])) as Array<{
-        id?: unknown;
-        name?: unknown;
-      }>;
-      const collection = collections.find((entry) => entry.name === collectionName || entry.id === collectionName);
-      if (typeof collection?.id === "string") collectionId = collection.id;
+  let collectionId: string | undefined = options.collectionId;
+  if (!collectionId) {
+    try {
+      const collectionResponse = await fetch(`${baseUrl}/v1/buckets/${encodeURIComponent(bucketId)}/collections`, {
+        headers: {
+          Authorization: `Bearer ${options.apiKey}`,
+          "X-Schift-Client": "ai-memory",
+        },
+      });
+      if (collectionResponse.ok) {
+        const collections = (await collectionResponse.json().catch(() => [])) as Array<{
+          id?: unknown;
+          name?: unknown;
+        }>;
+        const collection = collections.find((entry) => entry.name === collectionName || entry.id === collectionName);
+        if (typeof collection?.id === "string") collectionId = collection.id;
+      }
+    } catch {
+      collectionId = undefined;
     }
-  } catch {
-    collectionId = undefined;
   }
   const filename = `${event.collection ?? "__schift_ai_daily_log"}-${event.created_at.slice(0, 10)}-${event.id}.json`;
   const metadata: Record<string, string> = {

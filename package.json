@@ -1,6 +1,6 @@
 {
   "name": "schift-ai-memory",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "private": true,
   "description": "User-installed Schift AI memory collector: CLI, MCP server, hooks, and agent plugins.",
   "type": "module",
