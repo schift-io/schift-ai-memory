@@ -1,0 +1,57 @@
+{
+  "id": "schift.coding-agent.default",
+  "displayName": "Schift CodingAgent Default",
+  "description": "Default Schift AI Memory role package for coding agents. Installs memory retrieval tools, lifecycle upload hooks, and metadata-first summarization guidance under the user's Schift authorization boundary.",
+  "persona": "coding-agent",
+  "version": "0.1.0",
+  "security": {
+    "credentialSource": "schift-ai-memory-login-config",
+    "localConfigPath": "~/.schift/ai-memory/config.json",
+    "serverAuthoritative": true,
+    "clientMetadataIsProvenanceOnly": true,
+    "requiredScopes": [
+      "ai_memory:read",
+      "ai_memory:write",
+      "buckets:read",
+      "buckets:upload"
+    ],
+    "defaultBucket": "default",
+    "defaultCollection": "_daily_log",
+    "rawTranscript": "opt-in",
+    "artifactUpload": "selected-only"
+  },
+  "mcp": {
+    "server": "schift-ai-memory",
+    "command": "npx",
+    "args": ["-y", "@schift-io/ai-memory-mcp"],
+    "defaultTools": [
+      "search",
+      "fetch",
+      "schift_search",
+      "schift_memory_search",
+      "schift_list_buckets",
+      "schift_list_bucket_collections"
+    ],
+    "disabledByDefaultTools": [
+      "schift_workflow_list",
+      "schift_workflow_dry_run",
+      "schift_workflow_run"
+    ]
+  },
+  "hooks": {
+    "sessionStart": "npx -y @schift-io/ai-memory-hooks codex-session-start",
+    "stop": "npx -y @schift-io/ai-memory-hooks codex-stop",
+    "uploadDefault": true,
+    "queueFallback": true
+  },
+  "skills": [
+    "schift-ai-memory"
+  ],
+  "env": {
+    "SCHIFT_DEFAULT_BUCKET": "default",
+    "SCHIFT_COMPANY_BUCKET": "default",
+    "SCHIFT_COLLECTION": "_daily_log",
+    "SCHIFT_AI_MEMORY_POLICY": "summary_metadata_only",
+    "SCHIFT_AI_MEMORY_UPLOAD": "1"
+  }
+}

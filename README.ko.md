@@ -36,6 +36,8 @@ collection: _daily_log
   실행까지 이어지는 설치 표면.
 - MCP를 통한 조회: `search`, `fetch`, `schift_search`,
   `schift_memory_search`가 로그인 후 같은 Schift bucket을 읽습니다.
+- CodingAgent용 기본 role package. retrieval tool, lifecycle hook, Schift
+  security scope 기대값을 하나의 설치 단위로 묶습니다.
 
 ## Honcho와 뭐가 다른가
 
@@ -130,6 +132,7 @@ codex plugin marketplace add schift-io/schift-ai-memory --sparse .agents/plugins
 
 Codex plugin bundle에는 다음이 들어갑니다.
 
+- 기본 `schift.coding-agent.default` role package
 - MCP 설정
 - lifecycle hook 설정
 - Schift AI Memory skill

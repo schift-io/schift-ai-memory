@@ -1,6 +1,6 @@
 {
   "name": "schift-ai-memory",
-  "version": "0.1.0",
+  "version": "0.1.10",
   "description": "Capture AI coding and research work as Schift company memory with opt-in hooks and MCP.",
   "author": {
     "name": "Schift",
@@ -14,13 +14,15 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "hooks": "./hooks/hooks.json",
+  "rolePackages": "./roles/",
   "interface": {
     "displayName": "Schift AI Memory",
     "shortDescription": "Save AI work summaries into your company memory.",
     "longDescription": "Schift AI Memory installs MCP access plus opt-in lifecycle hooks so user-approved AI work summaries, job metadata, and artifact pointers can be routed to the right company bucket.",
     "developerName": "Schift",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"],
+    "capabilities": ["Read", "Write", "Tools"],
+    "defaultRolePackage": "schift.coding-agent.default",
     "websiteURL": "https://schift.io",
     "privacyPolicyURL": "https://schift.io/privacy",
     "termsOfServiceURL": "https://schift.io/terms",
@@ -31,4 +33,3 @@
     "brandColor": "#1D4ED8"
   }
 }
-

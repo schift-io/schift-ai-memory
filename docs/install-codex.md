@@ -2,6 +2,7 @@
 
 Codex distribution uses a plugin marketplace entry. The plugin bundles:
 
+- the default `schift.coding-agent.default` role package
 - a skill that tells Codex how to summarize AI work safely
 - an MCP config for Schift memory search/fetch
 - lifecycle hooks for uploading summaries, with local queue fallback

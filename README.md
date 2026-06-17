@@ -36,6 +36,8 @@ collection: _daily_log
 - A dedicated API key for AI memory upload, separate from your normal login.
 - Cached `org_id`, `user_id`, and security metadata when Schift returns them at
   login. Hooks do not call `/me` on every session.
+- A default CodingAgent role package that installs hooks, MCP retrieval tools,
+  and security scope expectations together.
 - Metadata-first daily work logs in Schift.
 - MCP search/fetch reads from the same local login config, so users can retrieve
   what was uploaded without copying API keys into every MCP client.
@@ -83,6 +85,13 @@ npx -y --package @schift-io/ai-memory schift-ai-memory login
 - `@schift-io/ai-memory-core`: shared metadata, redaction, queue, and upload helpers
 - `@schift-io/ai-memory-hooks`: lifecycle hook commands for Codex and Claude
 - `@schift-io/ai-memory-mcp`: MCP server package
+
+## Role Package
+
+The default CodingAgent package is `schift.coding-agent.default`.
+It is the one-shot bundle for coding agents: MCP `search`/`fetch`, Schift
+memory search tools, lifecycle hooks, and metadata-first security defaults.
+See [docs/coding-agent-role-package.md](docs/coding-agent-role-package.md).
 
 ## Repository Layout
 

@@ -38,6 +38,8 @@ After installation, the user gets:
   Cursor MCP, and direct MCP usage.
 - Retrieval through MCP: `search`, `fetch`, `schift_search`, and
   `schift_memory_search` can read the same Schift bucket after login.
+- A default CodingAgent role package that installs retrieval tools, lifecycle
+  hooks, and Schift security scope expectations as one unit.
 
 ## How Is This Different from Honcho?
 
@@ -133,6 +135,7 @@ codex plugin marketplace add schift-io/schift-ai-memory --sparse .agents/plugins
 
 The plugin bundle contains:
 
+- the default `schift.coding-agent.default` role package
 - MCP configuration
 - lifecycle hook configuration
 - a Schift AI Memory skill

@@ -7,7 +7,13 @@
             "type": "command",
             "command": "npx -y @schift-io/ai-memory-hooks codex-session-start",
             "timeout": 10,
-            "statusMessage": "Preparing Schift AI memory context"
+            "statusMessage": "Preparing Schift AI memory context",
+            "env": {
+              "SCHIFT_COMPANY_BUCKET": "${SCHIFT_COMPANY_BUCKET:-default}",
+              "SCHIFT_COLLECTION": "${SCHIFT_COLLECTION:-_daily_log}",
+              "SCHIFT_AI_MEMORY_POLICY": "summary_metadata_only",
+              "SCHIFT_AI_MEMORY_UPLOAD": "1"
+            }
           }
         ]
       }
@@ -19,11 +25,16 @@
             "type": "command",
             "command": "npx -y @schift-io/ai-memory-hooks codex-stop",
             "timeout": 10,
-            "statusMessage": "Queueing Schift AI memory summary"
+            "statusMessage": "Queueing Schift AI memory summary",
+            "env": {
+              "SCHIFT_COMPANY_BUCKET": "${SCHIFT_COMPANY_BUCKET:-default}",
+              "SCHIFT_COLLECTION": "${SCHIFT_COLLECTION:-_daily_log}",
+              "SCHIFT_AI_MEMORY_POLICY": "summary_metadata_only",
+              "SCHIFT_AI_MEMORY_UPLOAD": "1"
+            }
           }
         ]
       }
     ]
   }
 }
-

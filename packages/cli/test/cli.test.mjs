@@ -16,6 +16,20 @@ describe("schift-ai-memory CLI", () => {
     assert.equal(plan.collection, "_daily_log");
     assert.match(plan.install.codex, /codex plugin marketplace add/);
     assert.equal(plan.upload_policy, "summary_metadata_only");
+    assert.equal(plan.role_package.id, "schift.coding-agent.default");
+    assert.equal(plan.role_package.persona, "coding-agent");
+    assert.deepEqual(plan.role_package.security.required_scopes, [
+      "ai_memory:read",
+      "ai_memory:write",
+      "buckets:read",
+      "buckets:upload",
+    ]);
+    assert.ok(plan.role_package.tools.mcp.includes("search"));
+    assert.ok(plan.role_package.tools.mcp.includes("fetch"));
+    assert.ok(plan.role_package.tools.mcp.includes("schift_memory_search"));
+    assert.ok(plan.role_package.tools.disabled_by_default.includes("schift_workflow_run"));
+    assert.equal(plan.install.cursor_mcp.mcpServers.schift.env.SCHIFT_DEFAULT_BUCKET, "company:room821");
+    assert.equal(plan.install.cursor_mcp.mcpServers.schift.env.SCHIFT_API_KEY, undefined);
   });
 
   it("runs init as a guided setup when login is skipped", async () => {

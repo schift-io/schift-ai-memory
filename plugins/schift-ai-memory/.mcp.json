@@ -3,9 +3,8 @@
     "command": "npx",
     "args": ["-y", "@schift-io/ai-memory-mcp"],
     "env": {
-      "SCHIFT_API_KEY": "${SCHIFT_API_KEY}",
-      "SCHIFT_DEFAULT_BUCKET": "${SCHIFT_COMPANY_BUCKET}"
+      "SCHIFT_DEFAULT_BUCKET": "${SCHIFT_COMPANY_BUCKET:-default}",
+      "SCHIFT_COLLECTION": "${SCHIFT_COLLECTION:-_daily_log}"
     }
   }
 }
-

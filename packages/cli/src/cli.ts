@@ -106,11 +106,46 @@ async function writeClaudeCodeSettings() {
 
 function initPlan() {
   const bucket = companyBucket();
+  const collection = collectionName();
   return {
     product: "Schift AI Memory",
     company_bucket: bucket,
-    collection: collectionName(),
+    collection,
     upload_policy: "summary_metadata_only",
+    role_package: {
+      id: "schift.coding-agent.default",
+      persona: "coding-agent",
+      description: "Default role package for CodingAgent memory upload and retrieval.",
+      security: {
+        credential_source: "~/.schift/ai-memory/config.json",
+        server_authoritative: true,
+        client_metadata: "provenance_only",
+        required_scopes: [
+          "ai_memory:read",
+          "ai_memory:write",
+          "buckets:read",
+          "buckets:upload",
+        ],
+        default_bucket: bucket,
+        default_collection: collection,
+      },
+      tools: {
+        mcp: [
+          "search",
+          "fetch",
+          "schift_search",
+          "schift_memory_search",
+          "schift_list_buckets",
+          "schift_list_bucket_collections",
+        ],
+        hooks: ["codex-session-start", "codex-stop", "claude-stop", "claude-session-end"],
+        disabled_by_default: [
+          "schift_workflow_list",
+          "schift_workflow_dry_run",
+          "schift_workflow_run",
+        ],
+      },
+    },
     install: {
       codex: codexMarketplaceCommand(),
       claude_code_settings_example: claudeCodeSettings(bucket),
@@ -122,7 +157,7 @@ function initPlan() {
             args: ["-y", "@schift-io/ai-memory-mcp"],
             env: {
               SCHIFT_DEFAULT_BUCKET: bucket,
-              SCHIFT_COLLECTION: collectionName(),
+              SCHIFT_COLLECTION: collection,
             },
           },
         },
