@@ -1,6 +1,6 @@
 {
   "name": "schift-ai-memory",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Capture AI coding and research work as Schift company memory with opt-in hooks and MCP.",
   "author": {
     "name": "Schift",

@@ -110,6 +110,13 @@ If you only want to connect OAuth without writing host settings:
 npx -y schift-ai-memory login
 ```
 
+Check the installed credential, bucket access, collection routing, and role
+package:
+
+```bash
+npx -y schift-ai-memory doctor --search
+```
+
 ## Preview the Install Plan
 
 ```bash

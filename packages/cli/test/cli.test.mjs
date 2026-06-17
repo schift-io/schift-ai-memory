@@ -54,6 +54,21 @@ describe("schift-ai-memory CLI", () => {
     assert.equal(settings.env.SCHIFT_COLLECTION, "_daily_log");
   });
 
+  it("reports login status through doctor without requiring network when config is missing", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "schift-ai-memory-cli-"));
+    const { stdout } = await execFileAsync("node", ["dist/cli.js", "doctor"], {
+      env: {
+        ...process.env,
+        SCHIFT_AI_MEMORY_CONFIG: join(dir, "missing-config.json"),
+      },
+    });
+    const result = JSON.parse(stdout);
+    assert.equal(result.status, "needs_login");
+    assert.equal(result.checks[0].name, "config");
+    assert.equal(result.checks[0].status, "failed");
+    assert.match(result.next_action, /schift-ai-memory login/);
+  });
+
   it("prints a metadata example", async () => {
     const { stdout } = await execFileAsync("node", ["dist/cli.js", "metadata-example"]);
     const event = JSON.parse(stdout);

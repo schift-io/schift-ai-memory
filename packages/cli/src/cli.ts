@@ -4,6 +4,7 @@ import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { atomicWriteJson, createAiMemoryEvent } from "@schift-io/ai-memory-core";
 
 function argValue(name: string): string | undefined {
@@ -21,6 +22,8 @@ function printHelp() {
 Usage:
   schift-ai-memory init [--print] [--no-login] [--bucket <company-bucket>]
   schift-ai-memory login [--bucket default] [--collection _daily_log]
+  schift-ai-memory doctor
+  schift-ai-memory status
   schift-ai-memory me
   schift-ai-memory codex-marketplace
   schift-ai-memory claude-code-settings [--bucket <company-bucket>]
@@ -54,6 +57,24 @@ function appBaseUrl(): string {
 
 function configPath(): string {
   return process.env.SCHIFT_AI_MEMORY_CONFIG ?? join(homedir(), ".schift", "ai-memory", "config.json");
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+async function readLocalConfig(): Promise<Record<string, unknown>> {
+  return JSON.parse(await readFile(configPath(), "utf8")) as Record<string, unknown>;
+}
+
+function configIdentity(config: Record<string, unknown>) {
+  const identity = config.identity && typeof config.identity === "object"
+    ? config.identity as Record<string, unknown>
+    : {};
+  return {
+    org_id: stringValue(identity.org_id) ?? stringValue(config.org_id) ?? null,
+    user_id: stringValue(identity.user_id) ?? stringValue(config.user_id) ?? null,
+  };
 }
 
 function codexMarketplaceCommand(): string {
@@ -341,6 +362,150 @@ async function verifyApiKey(apiKey: string) {
   };
 }
 
+async function listBuckets(apiKey: string, baseUrl: string) {
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/v1/buckets`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "X-Schift-Client": "ai-memory-cli",
+    },
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`bucket list failed: ${response.status} ${text.slice(0, 200)}`);
+  return JSON.parse(text) as Array<{ id?: unknown; name?: unknown }>;
+}
+
+async function listCollections(apiKey: string, baseUrl: string, bucketId: string) {
+  const response = await fetch(
+    `${baseUrl.replace(/\/+$/, "")}/v1/buckets/${encodeURIComponent(bucketId)}/collections`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "X-Schift-Client": "ai-memory-cli",
+      },
+    },
+  );
+  if (response.status === 404) return [];
+  const text = await response.text();
+  if (!response.ok) throw new Error(`collection list failed: ${response.status} ${text.slice(0, 200)}`);
+  return JSON.parse(text) as Array<{ id?: unknown; name?: unknown }>;
+}
+
+async function searchBucket(apiKey: string, baseUrl: string, bucketId: string, query: string) {
+  const response = await fetch(
+    `${baseUrl.replace(/\/+$/, "")}/v2/buckets/${encodeURIComponent(bucketId)}/search`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "X-Schift-Client": "ai-memory-cli",
+      },
+      body: JSON.stringify({ query, top_k: 1 }),
+    },
+  );
+  const text = await response.text();
+  if (!response.ok) throw new Error(`bucket search failed: ${response.status} ${text.slice(0, 200)}`);
+  return JSON.parse(text) as Record<string, unknown>;
+}
+
+async function doctor() {
+  const startedAt = new Date().toISOString();
+  const checks: Array<Record<string, unknown>> = [];
+  let config: Record<string, unknown>;
+  try {
+    config = await readLocalConfig();
+    checks.push({ name: "config", status: "ok", path: configPath() });
+  } catch (error) {
+    console.log(JSON.stringify({
+      status: "needs_login",
+      started_at: startedAt,
+      checks: [{ name: "config", status: "failed", path: configPath(), error: String(error).slice(0, 200) }],
+      next_action: "Run `npx -y schift-ai-memory login`.",
+    }, null, 2));
+    return;
+  }
+
+  const apiKey = stringValue(config.api_key);
+  const baseUrl = stringValue(config.api_base_url) ?? apiBaseUrl();
+  const bucketName = stringValue(config.bucket) ?? companyBucket();
+  const collection = stringValue(config.collection) ?? collectionName();
+  if (!apiKey) {
+    checks.push({ name: "api_key", status: "failed", error: "missing api_key in local config" });
+    console.log(JSON.stringify({
+      status: "needs_login",
+      started_at: startedAt,
+      config: {
+        path: configPath(),
+        bucket: bucketName,
+        collection,
+        identity: configIdentity(config),
+        local_status: stringValue(config.status) ?? null,
+      },
+      checks,
+      next_action: "Run `npx -y schift-ai-memory login`.",
+    }, null, 2));
+    return;
+  }
+  checks.push({ name: "api_key", status: "ok", key_preview: stringValue(config.key_preview) ?? `${apiKey.slice(0, 6)}...` });
+
+  let bucketId = bucketName;
+  try {
+    const buckets = await listBuckets(apiKey, baseUrl);
+    const bucket = buckets.find((entry) => entry.name === bucketName || entry.id === bucketName);
+    bucketId = typeof bucket?.id === "string" ? bucket.id : bucketName;
+    checks.push({ name: "bucket_access", status: "ok", bucket: bucketName, bucket_id: bucketId });
+  } catch (error) {
+    checks.push({ name: "bucket_access", status: "failed", error: String(error).slice(0, 240) });
+  }
+
+  try {
+    const collections = await listCollections(apiKey, baseUrl, bucketId);
+    const found = collections.find((entry) => entry.name === collection || entry.id === collection);
+    checks.push({
+      name: "collection",
+      status: found ? "ok" : "metadata_only",
+      collection,
+      collection_id: typeof found?.id === "string" ? found.id : null,
+    });
+  } catch (error) {
+    checks.push({ name: "collection", status: "failed", collection, error: String(error).slice(0, 240) });
+  }
+
+  if (hasFlag("--search")) {
+    try {
+      const query = argValue("--query") ?? "Schift AI Memory";
+      const result = await searchBucket(apiKey, baseUrl, bucketId, query);
+      checks.push({
+        name: "mcp_search_equivalent",
+        status: "ok",
+        query,
+        result_ready: result.status ?? result.operational_status ?? null,
+      });
+    } catch (error) {
+      checks.push({ name: "mcp_search_equivalent", status: "failed", error: String(error).slice(0, 240) });
+    }
+  }
+
+  const failed = checks.some((check) => check.status === "failed");
+  console.log(JSON.stringify({
+    status: failed ? "degraded" : "ok",
+    started_at: startedAt,
+    config: {
+      path: configPath(),
+      api_base_url: baseUrl,
+      bucket: bucketName,
+      collection,
+      identity: configIdentity(config),
+      security: config.security ?? null,
+      local_status: stringValue(config.status) ?? null,
+      refresh_after: stringValue(config.refresh_after) ?? null,
+      last_upload_error: config.last_upload_error ?? null,
+    },
+    checks,
+    role_package: initPlan().role_package,
+  }, null, 2));
+}
+
 async function fetchOptionalMe() {
   const authToken = process.env.SCHIFT_AUTH_TOKEN;
   if (!authToken) {
@@ -442,6 +607,10 @@ async function main() {
   }
   if (command === "login") {
     await login();
+    return;
+  }
+  if (command === "doctor" || command === "status") {
+    await doctor();
     return;
   }
   if (command === "me") {

@@ -67,6 +67,7 @@ See the full comparison:
 npx -y schift-ai-memory init
 npx -y schift-ai-memory init --print
 npx -y schift-ai-memory login
+npx -y schift-ai-memory doctor --search
 npx -y schift-ai-memory codex-marketplace
 npx -y schift-ai-memory claude-code-settings --print
 npx -y schift-ai-memory metadata-example
@@ -92,6 +93,8 @@ The default CodingAgent package is `schift.coding-agent.default`.
 It is the one-shot bundle for coding agents: MCP `search`/`fetch`, Schift
 memory search tools, lifecycle hooks, and metadata-first security defaults.
 See [docs/coding-agent-role-package.md](docs/coding-agent-role-package.md).
+Server-side scope enforcement is specified in
+[docs/server-scope-enforcement.md](docs/server-scope-enforcement.md).
 
 ## Repository Layout
 

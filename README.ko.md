@@ -107,6 +107,13 @@ OAuth 연결만 하고 host 설정 파일은 만들고 싶지 않다면 다음�
 npx -y schift-ai-memory login
 ```
 
+설치된 credential, bucket 접근, collection 라우팅, role package 상태를
+확인하려면 다음을 씁니다.
+
+```bash
+npx -y schift-ai-memory doctor --search
+```
+
 ## 설치 계획 미리 보기
 
 ```bash

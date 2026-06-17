@@ -15,8 +15,13 @@ npm install -g @schift-io/ai-memory-mcp
 Or run without a global install:
 
 ```bash
-SCHIFT_API_KEY=sk-... npx -y @schift-io/ai-memory-mcp
+npx -y schift-ai-memory login
+npx -y @schift-io/ai-memory-mcp
 ```
+
+The local MCP server reads `~/.schift/ai-memory/config.json` by default.
+Set `SCHIFT_API_KEY` only when you intentionally want to override the local
+login config.
 
 ## Hosted Remote MCP
 
@@ -36,8 +41,8 @@ Authorization: Bearer <your-schift-api-key-or-oauth-token>
       "command": "npx",
       "args": ["-y", "@schift-io/ai-memory-mcp"],
       "env": {
-        "SCHIFT_API_KEY": "sk-...",
-        "SCHIFT_DEFAULT_BUCKET": "company:default"
+        "SCHIFT_DEFAULT_BUCKET": "default",
+        "SCHIFT_COLLECTION": "_daily_log"
       }
     }
   }
@@ -53,9 +58,11 @@ Default tools:
 - `schift_search`
 - `schift_list_buckets`
 - `schift_list_bucket_collections`
-- `schift_upload_document`
 - `schift_memory_search`
-- `schift_memory_list_sources`
+
+`schift_upload_document` is available for explicit document upload flows, but it
+is not part of the default CodingAgent role package. Workflow tools are hidden
+unless explicitly enabled.
 
 Workflow execution tools are disabled by default because Schift AI Memory is a
 collector/search component, not an Agent Hub runtime. Enable them only for

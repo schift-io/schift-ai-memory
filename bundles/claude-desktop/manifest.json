@@ -2,7 +2,7 @@
   "dxt_version": "0.1",
   "name": "schift-ai-memory",
   "display_name": "Schift AI Memory",
-  "version": "0.1.0",
+  "version": "0.1.11",
   "description": "Local MCP bundle for connecting Claude Desktop to Schift AI Memory.",
   "author": {
     "name": "Schift",
@@ -11,31 +11,29 @@
   },
   "server": {
     "type": "node",
-    "entry_point": "server/index.js",
     "mcp_config": {
-      "command": "node",
-      "args": ["${__dirname}/server/index.js"],
+      "command": "npx",
+      "args": ["-y", "@schift-io/ai-memory-mcp"],
       "env": {
-        "SCHIFT_API_KEY": "${user_config.schift_api_key}",
-        "SCHIFT_DEFAULT_BUCKET": "${user_config.company_bucket}"
+        "SCHIFT_DEFAULT_BUCKET": "${user_config.company_bucket}",
+        "SCHIFT_COLLECTION": "${user_config.collection}"
       }
     }
   },
   "user_config": {
-    "schift_api_key": {
-      "type": "string",
-      "title": "Schift API key",
-      "description": "Create or copy this from Schift account settings.",
-      "sensitive": true,
-      "required": true
-    },
     "company_bucket": {
       "type": "string",
       "title": "Company memory bucket",
-      "description": "Use the default company bucket unless Schift support tells you otherwise.",
+      "description": "Run `npx -y schift-ai-memory login` first. The MCP server reads ~/.schift/ai-memory/config.json for credentials.",
       "default": "default",
+      "required": false
+    },
+    "collection": {
+      "type": "string",
+      "title": "Daily log collection",
+      "description": "The metadata collection for AI work logs.",
+      "default": "_daily_log",
       "required": false
     }
   }
 }
-

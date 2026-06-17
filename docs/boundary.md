@@ -24,3 +24,6 @@ It must not contain:
 The Schift monorepo owns server ingest, authorization, company bucket routing,
 RAG indexing, audit evidence, and hosted MCP deployment.
 
+The client-side scope contract for the server is documented in
+`docs/server-scope-enforcement.md`. This repo may define the contract and smoke
+tests, but the server implementation must live with the auth/bucket API service.

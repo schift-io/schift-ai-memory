@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node -e 'for (const p of ["plugins/schift-ai-memory/.codex-plugin/plugin.json","plugins/schift-ai-memory/.mcp.json","plugins/schift-ai-memory/hooks/hooks.json","plugins/schift-ai-memory/roles/coding-agent.default.json","bundles/claude-desktop/manifest.json"]) JSON.parse(require("fs").readFileSync(p,"utf8"));'
+      - run: npm run build
+      - run: npm run lint
+      - run: npm test
+      - run: npm audit --audit-level=high
+      - run: git diff --check
