@@ -96,6 +96,12 @@ See [docs/coding-agent-role-package.md](docs/coding-agent-role-package.md).
 Server-side scope enforcement is specified in
 [docs/server-scope-enforcement.md](docs/server-scope-enforcement.md).
 
+## Format Direction
+
+Schift AI Memory should adopt CCLG as its canonical memory format/runtime and
+wrap it with Schift auth, bucket, redaction, queue, and upload metadata. See
+[docs/cclg-format-adoption-proposal.md](docs/cclg-format-adoption-proposal.md).
+
 ## Repository Layout
 
 ```text
