@@ -41,9 +41,31 @@ export interface AiMemoryContentPolicy {
   redaction: "default" | "strict" | "off";
 }
 
+export interface CclgMemoryPayload {
+  schema_version: string;
+  session_id?: string;
+  node_ids?: string[];
+  patch_ids?: string[];
+  source_labels?: string[];
+  summary?: string;
+  [key: string]: unknown;
+}
+
+export interface SchiftAiMemoryEnvelopeMetadata {
+  org_id?: string;
+  user_id?: string;
+  bucket: string;
+  collection: string;
+  upload_policy: "summary_metadata_only";
+  redaction: AiMemoryContentPolicy["redaction"];
+  [key: string]: unknown;
+}
+
 export interface AiMemoryEvent {
   id: string;
   created_at: string;
+  schema_version?: string;
+  kind?: string;
   source: AiMemorySource;
   source_version?: string;
   harness: string;
@@ -56,11 +78,15 @@ export interface AiMemoryEvent {
   job: AiMemoryJobMetadata;
   summary?: string;
   metadata?: Record<string, unknown>;
+  schift?: SchiftAiMemoryEnvelopeMetadata;
+  cclg?: CclgMemoryPayload;
   content_policy: AiMemoryContentPolicy;
   tags: string[];
 }
 
 export interface CreateAiMemoryEventInput {
+  schema_version?: string;
+  kind?: string;
   source: AiMemorySource;
   source_version?: string;
   harness: string;
@@ -73,8 +99,14 @@ export interface CreateAiMemoryEventInput {
   job: AiMemoryJobMetadata;
   summary?: string;
   metadata?: Record<string, unknown>;
+  schift?: SchiftAiMemoryEnvelopeMetadata;
+  cclg?: CclgMemoryPayload;
   content_policy?: Partial<AiMemoryContentPolicy>;
   tags?: string[];
+}
+
+export interface CreateCclgAiMemoryEventInput extends Omit<CreateAiMemoryEventInput, "cclg"> {
+  cclg: CclgMemoryPayload;
 }
 
 export interface UploadResult {
@@ -111,6 +143,42 @@ export function createAiMemoryEvent(input: CreateAiMemoryEventInput): AiMemoryEv
   };
 }
 
+function cclgMetadata(payload: CclgMemoryPayload): Record<string, unknown> {
+  return {
+    schema_version: payload.schema_version,
+    session_id: payload.session_id,
+    node_ids: payload.node_ids,
+    patch_ids: payload.patch_ids,
+    source_labels: payload.source_labels,
+  };
+}
+
+export function createCclgAiMemoryEvent(input: CreateCclgAiMemoryEventInput): AiMemoryEvent {
+  const contentPolicy = {
+    ...DEFAULT_CONTENT_POLICY,
+    ...input.content_policy,
+  };
+  return createAiMemoryEvent({
+    ...input,
+    schema_version: "schift.ai_memory_envelope.v0.1",
+    kind: "cclg_session_summary",
+    summary: input.summary ?? input.cclg.summary,
+    metadata: {
+      ...input.metadata,
+      cclg: cclgMetadata(input.cclg),
+    },
+    schift: {
+      org_id: input.org_id,
+      user_id: input.user_id,
+      bucket: input.company_bucket ?? "default",
+      collection: input.collection ?? "__schift_ai_daily_log",
+      upload_policy: "summary_metadata_only",
+      redaction: contentPolicy.redaction,
+    },
+    tags: input.tags ?? [`source:${input.source}`, `job:${input.job.type}`, "format:cclg"],
+  });
+}
+
 export function redactText(text: string, mode: AiMemoryContentPolicy["redaction"] = "default"): string {
   if (mode === "off") return text;
   let redacted = text;
@@ -124,11 +192,38 @@ export function redactText(text: string, mode: AiMemoryContentPolicy["redaction"
   return redacted;
 }
 
+function redactUnknown(value: unknown, mode: AiMemoryContentPolicy["redaction"]): unknown {
+  if (typeof value === "string") return redactText(value, mode);
+  if (Array.isArray(value)) return value.map((entry) => redactUnknown(entry, mode));
+  if (value && typeof value === "object") {
+    const redacted: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      redacted[key] = redactUnknown(entry, mode);
+    }
+    return redacted;
+  }
+  return value;
+}
+
+function redactRecord(value: Record<string, unknown>, mode: AiMemoryContentPolicy["redaction"]): Record<string, unknown> {
+  return redactUnknown(value, mode) as Record<string, unknown>;
+}
+
+function redactCclgPayload(payload: CclgMemoryPayload, mode: AiMemoryContentPolicy["redaction"]): CclgMemoryPayload {
+  return {
+    ...redactRecord(payload, mode),
+    schema_version: redactText(payload.schema_version, mode),
+  } as CclgMemoryPayload;
+}
+
 export function redactEvent(event: AiMemoryEvent): AiMemoryEvent {
   const redaction = event.content_policy.redaction;
   return {
     ...event,
     summary: event.summary ? redactText(event.summary, redaction) : undefined,
+    metadata: event.metadata ? redactRecord(event.metadata, redaction) : undefined,
+    schift: event.schift ? (redactRecord(event.schift, redaction) as SchiftAiMemoryEnvelopeMetadata) : undefined,
+    cclg: event.cclg ? redactCclgPayload(event.cclg, redaction) : undefined,
     job: {
       ...event.job,
       title: redactText(event.job.title, redaction),
@@ -211,6 +306,16 @@ export async function uploadEvent(options: {
   if (event.session_id) metadata.session_id = event.session_id;
   if (event.job.repo) metadata.repo = event.job.repo;
   if (event.job.branch) metadata.branch = event.job.branch;
+  if (event.schema_version) metadata.envelope_schema_version = event.schema_version;
+  if (event.kind) metadata.envelope_kind = event.kind;
+  if (event.cclg) {
+    metadata.memory_format = "cclg";
+    metadata.cclg_schema_version = event.cclg.schema_version;
+    if (event.cclg.session_id) metadata.cclg_session_id = event.cclg.session_id;
+    if (event.cclg.node_ids?.length) metadata.cclg_node_ids = event.cclg.node_ids.join(",");
+    if (event.cclg.patch_ids?.length) metadata.cclg_patch_ids = event.cclg.patch_ids.join(",");
+    if (event.cclg.source_labels?.length) metadata.cclg_source_labels = event.cclg.source_labels.join(",");
+  }
 
   const form = new FormData();
   form.append("files", new Blob([JSON.stringify(event, null, 2)], { type: "application/json" }), filename);

@@ -144,6 +144,14 @@ interface FetchCacheEntry {
   metadata: Record<string, unknown>;
 }
 
+interface CclgSearchMetadata {
+  schema_version?: string;
+  session_id?: string;
+  node_ids?: string[];
+  patch_ids?: string[];
+  source_labels?: string[];
+}
+
 function isPlainObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -167,6 +175,53 @@ function stringArrayArg(args: JsonObject, key: string): string[] | undefined {
 function integerArg(args: JsonObject, key: string): number | undefined {
   const value = numberArg(args, key);
   return value === undefined ? undefined : Math.trunc(value);
+}
+
+function stringFromUnknown(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function stringArrayFromUnknown(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    const values = value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    return values.length ? values : undefined;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const values = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return values.length ? values : undefined;
+  }
+  return undefined;
+}
+
+function cclgMetadataFromHit(hit: SchiftSearchHit): CclgSearchMetadata | undefined {
+  const metadata = hit.metadata ?? {};
+  const nested = isPlainObject(metadata.cclg) ? metadata.cclg : {};
+  const cclg: CclgSearchMetadata = {
+    schema_version:
+      stringFromUnknown(nested.schema_version) ??
+      stringFromUnknown(metadata.cclg_schema_version) ??
+      stringFromUnknown(metadata["cclg.schema_version"]),
+    session_id:
+      stringFromUnknown(nested.session_id) ??
+      stringFromUnknown(metadata.cclg_session_id) ??
+      stringFromUnknown(metadata["cclg.session_id"]),
+    node_ids:
+      stringArrayFromUnknown(nested.node_ids) ??
+      stringArrayFromUnknown(metadata.cclg_node_ids) ??
+      stringArrayFromUnknown(metadata["cclg.node_ids"]),
+    patch_ids:
+      stringArrayFromUnknown(nested.patch_ids) ??
+      stringArrayFromUnknown(metadata.cclg_patch_ids) ??
+      stringArrayFromUnknown(metadata["cclg.patch_ids"]),
+    source_labels:
+      stringArrayFromUnknown(nested.source_labels) ??
+      stringArrayFromUnknown(metadata.cclg_source_labels) ??
+      stringArrayFromUnknown(metadata["cclg.source_labels"]),
+  };
+  return Object.values(cclg).some((value) => value !== undefined) ? cclg : undefined;
 }
 
 function parseTagFilters(tags?: string[]): JsonObject {
@@ -303,7 +358,7 @@ const TOOLS = [
   {
     name: "search",
     description:
-      "ChatGPT-compatible search alias. Searches the configured default bucket, or the user's `default` bucket when no default is configured, and returns result IDs, titles, and URLs.",
+      "ChatGPT-compatible search alias. Searches the configured default bucket, or the user's `default` bucket when no default is configured, and returns result IDs, titles, URLs, and CCLG refs when available.",
     inputSchema: {
       type: "object",
       properties: {
@@ -702,11 +757,15 @@ export function createServer(config: SchiftMcpConfig) {
             type: "text",
             text: JSON.stringify(
               {
-                results: hitsFromBucketSearchResponse(out).map((hit) => ({
-                  id: hit.id,
-                  title: titleForHit(hit),
-                  url: urlForHit(hit, out.bucket_id),
-                })),
+                results: hitsFromBucketSearchResponse(out).map((hit) => {
+                  const cclg = cclgMetadataFromHit(hit);
+                  return {
+                    id: hit.id,
+                    title: titleForHit(hit),
+                    url: urlForHit(hit, out.bucket_id),
+                    ...(cclg ? { cclg } : {}),
+                  };
+                }),
               },
               null,
               2,

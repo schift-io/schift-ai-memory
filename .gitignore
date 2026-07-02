@@ -7,6 +7,6 @@ coverage/
 npm-debug.log*
 .DS_Store
 .ai-memory-queue/
+.omx/
 *.tgz
 *.mcpb
-

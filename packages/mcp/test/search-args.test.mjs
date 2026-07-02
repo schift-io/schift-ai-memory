@@ -189,6 +189,78 @@ describe("Schift MCP search argument mapping", () => {
     }
   });
 
+  it("surfaces CCLG refs in compact search results", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (path === "/v1/buckets") {
+        return Response.json([{ id: "bucket_1", name: "default" }]);
+      }
+      if (path === "/v2/buckets/bucket_1/search") {
+        assert.equal(init.method, "POST");
+        assert.deepEqual(JSON.parse(init.body), {
+          query: "cclg session",
+          top_k: 10,
+        });
+        return Response.json({
+          bucket_id: "bucket_1",
+          query: "cclg session",
+          results: [
+            {
+              id: "hit_1",
+              score: 0.92,
+              text: "CCLG session summary",
+              metadata: {
+                title: "CCLG session",
+                cclg_schema_version: "cclg.active_memory_pack.v0.1",
+                cclg_session_id: "session_1",
+                cclg_node_ids: "mem_1,mem_2",
+                cclg_source_labels: "manual:quickstart,codex:session",
+              },
+            },
+          ],
+        });
+      }
+      return new Response("not found", { status: 404 });
+    };
+
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const server = createServer({
+      apiBaseUrl: "https://api.test",
+      apiKey: "user-token",
+    });
+    const client = new Client({ name: "schift-mcp-test", version: "1.0.0" });
+
+    try {
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+
+      const result = await client.callTool({
+        name: "search",
+        arguments: { query: "cclg session" },
+      });
+      assert.deepEqual(JSON.parse(result.content[0].text), {
+        results: [
+          {
+            id: "hit_1",
+            title: "CCLG session",
+            url: "schift://bucket/bucket_1/chunks/hit_1",
+            cclg: {
+              schema_version: "cclg.active_memory_pack.v0.1",
+              session_id: "session_1",
+              node_ids: ["mem_1", "mem_2"],
+              source_labels: ["manual:quickstart", "codex:session"],
+            },
+          },
+        ],
+      });
+    } finally {
+      await client.close().catch(() => {});
+      await server.close().catch(() => {});
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("builds a multipart upload form from text content", async () => {
     const form = uploadFormFromArgs({
       filename: "note.txt",
