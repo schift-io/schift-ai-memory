@@ -2,6 +2,15 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
+import { CCLG_CONTAINER_ID, type CclgRecord } from "./cclg-format.js";
+import { parseCclgContainer, type ParseCclgContainerOptions } from "./cclg-container.js";
+import { effectiveView } from "./cclg-effective-view.js";
+
+export * from "./cclg-format.js";
+export * from "./cclg-schema.js";
+export * from "./cclg-container.js";
+export * from "./cclg-effective-view.js";
+
 export type AiMemorySource =
   | "codex"
   | "claude-code"
@@ -177,6 +186,78 @@ export function createCclgAiMemoryEvent(input: CreateCclgAiMemoryEventInput): Ai
     },
     tags: input.tags ?? [`source:${input.source}`, `job:${input.job.type}`, "format:cclg"],
   });
+}
+
+export interface CreateCclgAiMemoryEventFromContainerInput extends Omit<CreateAiMemoryEventInput, "cclg"> {
+  /** Raw `.cclg` container bytes (docs/CCLG_CONTAINER.md), preserved verbatim -- see `cclg.container_text` below. */
+  container: Uint8Array | Buffer;
+  /** Forwarded to parseCclgContainer; defaults to `{ validate: true }`, matching Python's `load_container` default. */
+  parseOptions?: ParseCclgContainerOptions;
+  /** Override the derived flat summary/labels instead of the effectiveView() projection below. */
+  cclgOverrides?: Partial<Omit<CclgMemoryPayload, "schema_version">>;
+}
+
+function sourceLabelOf(node: CclgRecord): string | undefined {
+  const source = node.source;
+  if (source && typeof source === "object") {
+    const label = (source as CclgRecord).label;
+    if (typeof label === "string" && label) return label;
+  }
+  return undefined;
+}
+
+function summarizeActiveNodes(nodes: CclgRecord[], limit = 5, maxChars = 480): string {
+  const contents = nodes
+    .slice(0, limit)
+    .map((node) => String(node.content ?? "").trim())
+    .filter(Boolean);
+  const joined = contents.join(" / ");
+  return joined.length > maxChars ? `${joined.slice(0, maxChars - 1)}…` : joined;
+}
+
+/**
+ * Lossless-container variant of `createCclgAiMemoryEvent` -- this is the P3
+ * replacement for the tag-degrade path: instead of the caller hand-picking
+ * `node_ids`/`patch_ids`/`source_labels`/`summary` themselves (the old
+ * `CclgMemoryPayload` shape, still supported above for callers that already
+ * have that flat summary), this loads a raw `.cclg` container and keeps every
+ * node/patch/edge/session record it carries. The whole container is
+ * preserved verbatim under `cclg.container_text` -- zero records are dropped
+ * or summarized away -- while `node_ids`/`source_labels`/`summary` become a
+ * *derived* search-friendly projection computed via `effectiveView()` over
+ * the container's own nodes+patches.
+ *
+ * Note on redaction: this still funnels through `createCclgAiMemoryEvent` /
+ * `redactEvent` below, which redacts every string field of the envelope,
+ * including `container_text`. A redacted container's `container_checksum`
+ * will therefore no longer match a fresh sha256 of the (now-redacted) text --
+ * that's expected: privacy redaction is uniform across every field this
+ * collector uploads, and `container_checksum` is kept only as a reference
+ * back to the original, pre-redaction bytes (e.g. for local dedupe), not as a
+ * guarantee the uploaded text still satisfies docs/CCLG_CONTAINER.md §6.
+ */
+export function createCclgAiMemoryEventFromContainer(input: CreateCclgAiMemoryEventFromContainerInput): AiMemoryEvent {
+  const { container, parseOptions, cclgOverrides, ...rest } = input;
+  const bundle = parseCclgContainer(container, parseOptions);
+  const active = effectiveView(bundle.nodes, bundle.patches, rest.session_id);
+
+  const sourceLabels = [...new Set(active.map(sourceLabelOf).filter((label): label is string => Boolean(label)))];
+
+  const payload: CclgMemoryPayload = {
+    schema_version: typeof bundle.header.container === "string" ? bundle.header.container : CCLG_CONTAINER_ID,
+    session_id: rest.session_id,
+    node_ids: active.map((node) => String(node.id)),
+    patch_ids: bundle.patches.map((patch) => String(patch.id)),
+    source_labels: sourceLabels,
+    summary: summarizeActiveNodes(active),
+    container_format: CCLG_CONTAINER_ID,
+    container_text: Buffer.from(container).toString("utf8"),
+    container_checksum: String(bundle.header.content_sha256 ?? ""),
+    counts: bundle.counts,
+    ...cclgOverrides,
+  };
+
+  return createCclgAiMemoryEvent({ ...rest, cclg: payload });
 }
 
 export function redactText(text: string, mode: AiMemoryContentPolicy["redaction"] = "default"): string {

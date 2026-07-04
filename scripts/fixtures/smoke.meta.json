@@ -1,0 +1,11 @@
+{
+  "session_id": "acct_cclgsmoke:cclg-smoke:user_cclgsmoke:conv_cclgsmoke",
+  "revenue_fact_memory_id": "mem_4beefb1152ee4bc582f5868be56bbb0d",
+  "meeting_fact_memory_id": "mem_4a7d8d748ecf42f7ad07dc9c3c8043bf",
+  "memories_appended_count": 3,
+  "active_substring_present": "정기 회의는 매주 화요일 10시",
+  "superseded_substring_absent": "5억원",
+  "expected_container_node_count": 2,
+  "expected_container_patch_count": 1,
+  "expected_active_node_count": 1
+}
