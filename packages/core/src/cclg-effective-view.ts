@@ -33,6 +33,33 @@ const EXCLUDING_PATCH_OPERATIONS = new Set([
   "deprecate",
 ]);
 
+/**
+ * The complete closed set of patch operations this reader's effective-view
+ * logic has classified one way or the other: either retiring
+ * (`EXCLUDING_PATCH_OPERATIONS`) or explicitly known-non-retiring ("create",
+ * "rollback"). Mirrors `cclg/patches.py::KNOWN_PATCH_OPERATIONS` exactly.
+ */
+const KNOWN_PATCH_OPERATIONS = new Set([...EXCLUDING_PATCH_OPERATIONS, "create", "rollback"]);
+
+/**
+ * Raised by `effectiveView()` when a patch's `operation` is not in
+ * `KNOWN_PATCH_OPERATIONS` (docs/CCLG_CONTAINER.md §3.1.1 fail-closed load
+ * semantics; mirrors `cclg/patches.py::UnknownPatchOperationError`).
+ *
+ * An operation this reader doesn't recognize as retiring-or-not is not safe
+ * to silently treat as non-retiring: a future container format version (or a
+ * hand-edited/corrupted patch record) could carry an operation that *should*
+ * retire its target, and computing an effective view that quietly ignores it
+ * would resurrect a memory that was supposed to be superseded, expired,
+ * forgotten, or deprecated. Fail-closed here, not fail-open.
+ */
+export class UnknownPatchOperationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnknownPatchOperationError";
+  }
+}
+
 function scopeOf(node: CclgRecord): CclgRecord {
   return (node.scope as CclgRecord | undefined) ?? {};
 }
@@ -99,7 +126,14 @@ export function effectiveView(nodes: CclgRecord[], patches: CclgRecord[] = [], s
   const excludedIds = new Set<string>();
   for (const patch of patches) {
     const operation = patch.operation as string | undefined;
-    if (operation && EXCLUDING_PATCH_OPERATIONS.has(operation)) {
+    if (!operation || !KNOWN_PATCH_OPERATIONS.has(operation)) {
+      throw new UnknownPatchOperationError(
+        `patch ${JSON.stringify(patch.id)} has unrecognized operation ${JSON.stringify(operation)}; ` +
+          `refusing to compute effective view (docs/CCLG_CONTAINER.md §3.1.1 fail-closed load semantics) ` +
+          `— known operations: ${[...KNOWN_PATCH_OPERATIONS].sort().join(", ")}`,
+      );
+    }
+    if (EXCLUDING_PATCH_OPERATIONS.has(operation)) {
       for (const targetId of (patch.target_ids as string[] | undefined) ?? []) {
         excludedIds.add(targetId);
       }
