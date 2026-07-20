@@ -29,7 +29,7 @@ The local credential source is:
 That file is created by:
 
 ```bash
-npx -y schift-ai-memory login
+npx -y @schift-io/mcp login
 ```
 
 The client includes identity/security metadata as provenance. Schift server

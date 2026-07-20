@@ -18,7 +18,7 @@ Then open `/plugins` in Codex and install **Schift AI Memory**.
 Run the installer first so hooks can read `~/.schift/ai-memory/config.json`:
 
 ```bash
-npx -y schift-ai-memory init
+npx -y @schift-io/mcp init
 ```
 
 Hooks upload summary and metadata by default when a local API key exists. To

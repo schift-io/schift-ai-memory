@@ -1,9 +1,10 @@
 {
-  "name": "schift-ai-memory",
-  "version": "0.1.13",
-  "description": "npx-friendly installer CLI for Schift AI Memory.",
+  "name": "@schift-io/mcp",
+  "version": "0.1.14",
+  "description": "Installer CLI for Schift memory — MCP server + Claude Code/Codex hooks. BYO-LLM: your Claude/Codex runs the agent, Schift provides memory & hybrid search.",
   "type": "module",
   "bin": {
+    "schift-mcp": "dist/cli.js",
     "schift-ai-memory": "dist/cli.js"
   },
   "main": "./dist/cli.js",

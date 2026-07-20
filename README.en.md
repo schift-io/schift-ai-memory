@@ -75,7 +75,7 @@ References:
 Recommended:
 
 ```bash
-npx -y schift-ai-memory init
+npx -y @schift-io/mcp init
 ```
 
 This command:
@@ -95,7 +95,7 @@ This command:
 Use a custom route only when needed:
 
 ```bash
-npx -y schift-ai-memory init --bucket default --collection __schift_ai_daily_log
+npx -y @schift-io/mcp init --bucket default --collection __schift_ai_daily_log
 ```
 
 The scoped package form also works:
@@ -107,20 +107,20 @@ npx -y --package @schift-io/ai-memory schift-ai-memory init
 If you only want to connect OAuth without writing host settings:
 
 ```bash
-npx -y schift-ai-memory login
+npx -y @schift-io/mcp login
 ```
 
 Check the installed credential, bucket access, collection routing, and role
 package:
 
 ```bash
-npx -y schift-ai-memory doctor --search
+npx -y @schift-io/mcp doctor --search
 ```
 
 ## Preview the Install Plan
 
 ```bash
-npx -y schift-ai-memory init --print
+npx -y @schift-io/mcp init --print
 ```
 
 This prints the Codex, Claude, Claude Desktop, Cursor, and MCP configuration
@@ -131,7 +131,7 @@ plan without opening OAuth or writing files.
 Print the Codex marketplace command:
 
 ```bash
-npx -y schift-ai-memory codex-marketplace
+npx -y @schift-io/mcp codex-marketplace
 ```
 
 Current output:
@@ -153,13 +153,13 @@ The plugin bundle contains:
 Print Claude Code hook settings:
 
 ```bash
-npx -y schift-ai-memory claude-code-settings --print
+npx -y @schift-io/mcp claude-code-settings --print
 ```
 
 Write an example settings file:
 
 ```bash
-npx -y schift-ai-memory claude-code-settings
+npx -y @schift-io/mcp claude-code-settings
 ```
 
 The generated file is:
@@ -202,7 +202,7 @@ user can reconnect. Set `SCHIFT_AI_MEMORY_UPLOAD=0` to force queue-only mode.
 A typical event looks like this:
 
 ```bash
-npx -y schift-ai-memory metadata-example
+npx -y @schift-io/mcp metadata-example
 ```
 
 Example shape:

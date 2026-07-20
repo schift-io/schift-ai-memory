@@ -7,7 +7,7 @@ Claude has two relevant install surfaces.
 Generate a settings snippet:
 
 ```bash
-npx -y schift-ai-memory init
+npx -y @schift-io/mcp init
 npx @schift-io/ai-memory claude-code-settings --print
 ```
 
