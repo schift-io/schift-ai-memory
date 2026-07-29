@@ -332,24 +332,26 @@ export async function uploadEvent(options: {
   const event = redactEvent(options.event);
   const bucketName = event.company_bucket ?? "default";
   let response: Response;
-  try {
-    response = await fetch(`${baseUrl}/v1/buckets`, {
-      headers: {
-        Authorization: `Bearer ${options.apiKey}`,
-        "X-Schift-Client": "ai-memory",
-      },
-    });
-  } catch (error) {
-    return { ok: false, status: 0, error: String(error).slice(0, 200) };
+  let bucketId = bucketName;
+  if (!/^[a-f0-9]{32}$/i.test(bucketName)) {
+    try {
+      response = await fetch(`${baseUrl}/v1/buckets`, {
+        headers: {
+          Authorization: `Bearer ${options.apiKey}`,
+          "X-Schift-Client": "ai-memory",
+        },
+      });
+    } catch (error) {
+      return { ok: false, status: 0, error: String(error).slice(0, 200) };
+    }
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      return { ok: false, status: response.status, error: detail.slice(0, 300) };
+    }
+    const buckets = (await response.json().catch(() => [])) as Array<{ id?: unknown; name?: unknown }>;
+    const bucket = buckets.find((entry) => entry.name === bucketName || entry.id === bucketName);
+    bucketId = typeof bucket?.id === "string" ? bucket.id : bucketName;
   }
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    return { ok: false, status: response.status, error: detail.slice(0, 300) };
-  }
-
-  const buckets = (await response.json().catch(() => [])) as Array<{ id?: unknown; name?: unknown }>;
-  const bucket = buckets.find((entry) => entry.name === bucketName || entry.id === bucketName);
-  const bucketId = typeof bucket?.id === "string" ? bucket.id : bucketName;
   const collectionName = event.collection ?? "__schift_ai_daily_log";
   let collectionId: string | undefined = options.collectionId;
   if (!collectionId) {

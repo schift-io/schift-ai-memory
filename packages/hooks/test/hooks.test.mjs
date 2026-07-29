@@ -37,6 +37,7 @@ describe("AI memory hooks", () => {
           ...process.env,
           SCHIFT_AI_MEMORY_QUEUE_DIR: dir,
           SCHIFT_COMPANY_BUCKET: "company:room821",
+          SCHIFT_AI_MEMORY_UPLOAD: "0",
         },
       );
       const files = await readdir(dir);
@@ -101,6 +102,38 @@ describe("AI memory hooks", () => {
         level: "standard",
         policy_version: "2026-06-17",
       });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps lifecycle events in the configured session-memory bucket", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "schift-ai-memory-hooks-"));
+    try {
+      const configPath = join(dir, "config.json");
+      await writeFile(
+        configPath,
+        `${JSON.stringify({
+          bucket: "default",
+          session_bucket: "agent-hub-session-memory",
+          session_bucket_id: "0123456789abcdef0123456789abcdef",
+        })}\n`,
+        "utf8",
+      );
+      await runHook(
+        ["codex-stop"],
+        JSON.stringify({ session_id: "sess_session_memory", prompt: "Store only the session summary" }),
+        {
+          ...process.env,
+          SCHIFT_AI_MEMORY_QUEUE_DIR: dir,
+          SCHIFT_AI_MEMORY_CONFIG: configPath,
+          SCHIFT_AI_MEMORY_UPLOAD: "0",
+        },
+      );
+      const files = (await readdir(dir)).filter((name) => name !== "config.json");
+      const queued = JSON.parse(await readFile(join(dir, files[0]), "utf8"));
+      assert.equal(queued.company_bucket, "0123456789abcdef0123456789abcdef");
+      assert.equal(queued.metadata.rag_bucket_role, "session_memory");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

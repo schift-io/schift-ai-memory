@@ -15,8 +15,11 @@ interface LocalConfig {
   api_key?: string;
   bucket?: string;
   bucket_id?: string;
+  session_bucket?: string;
+  session_bucket_id?: string;
   collection?: string;
   collection_id?: string;
+  session_collection_id?: string;
   role_package_id?: string;
   identity?: {
     org_id?: string | null;
@@ -114,7 +117,13 @@ async function main() {
   const cwd = stringValue(payload.cwd) ?? stringValue(payload.working_directory);
   const prompt = stringValue(payload.prompt) ?? stringValue(payload.user_prompt);
   const summary = stringValue(payload.summary) ?? stringValue(payload.transcript_summary);
+  const sessionBucket =
+    process.env.SCHIFT_RAG_BUCKET ??
+    stringValue(payload.session_bucket) ??
+    stringValue(config.session_bucket_id) ??
+    stringValue(config.session_bucket);
   const bucket =
+    sessionBucket ??
     process.env.SCHIFT_COMPANY_BUCKET ??
     stringValue(payload.company_bucket) ??
     stringValue(payload.bucket) ??
@@ -166,6 +175,7 @@ async function main() {
         config_status: stringValue(config.status) ?? "unknown",
         refresh_due: refreshDue(config),
       },
+      rag_bucket_role: sessionBucket ? "session_memory" : "company",
       cached_security: config.security ?? null,
       security_verified_at: config.verified_at,
       security_refresh_after: config.refresh_after,
@@ -175,7 +185,14 @@ async function main() {
   const apiKey = process.env.SCHIFT_API_KEY ?? stringValue(config.api_key);
   const apiBaseUrl = process.env.SCHIFT_API_BASE_URL ?? stringValue(config.api_base_url) ?? "https://api.schift.io";
   if (apiKey && process.env.SCHIFT_AI_MEMORY_UPLOAD !== "0") {
-    const result = await uploadEvent({ apiBaseUrl, apiKey, event, collectionId: stringValue(config.collection_id) });
+    const result = await uploadEvent({
+      apiBaseUrl,
+      apiKey,
+      event,
+      collectionId: sessionBucket
+        ? stringValue(config.session_collection_id)
+        : stringValue(config.collection_id),
+    });
     if (result.ok) {
       console.error(`[schift-mcp-hooks] uploaded ${result.id}`);
       return;

@@ -273,4 +273,32 @@ describe("AI memory core", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("uploads to a configured bucket id without listing buckets", async () => {
+    const originalFetch = globalThis.fetch;
+    const bucketId = "0123456789abcdef0123456789abcdef";
+    globalThis.fetch = async (url, init = {}) => {
+      assert.equal(String(url), `https://api.test/v1/buckets/${bucketId}/upload`);
+      assert.ok(init.body instanceof FormData);
+      assert.equal(init.body.get("collection_id"), "session_collection");
+      return Response.json({ jobs: [{ job_id: "job_session" }] }, { status: 201 });
+    };
+    try {
+      const result = await uploadEvent({
+        apiBaseUrl: "https://api.test",
+        apiKey: "sk-test",
+        collectionId: "session_collection",
+        event: createAiMemoryEvent({
+          source: "codex",
+          harness: "codex-plugin",
+          company_bucket: bucketId,
+          collection: "__schift_ai_daily_log",
+          job: { type: "coding", title: "Upload session", status: "completed" },
+        }),
+      });
+      assert.deepEqual(result, { ok: true, status: 201, id: "job_session" });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
