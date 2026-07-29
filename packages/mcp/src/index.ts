@@ -845,7 +845,7 @@ export function createServer(config: SchiftMcpConfig) {
     if (name === "schift_upload_document") {
       const bucketId = await resolveBucketId(bucketFromArgs(args, config), "schift_upload_document");
       const out = await callApi<AsyncUploadResponse>(
-        `/v2/buckets/${encodeURIComponent(bucketId)}/documents`,
+        `/v1/buckets/${encodeURIComponent(bucketId)}/upload`,
         {
           method: "POST",
           body: uploadFormFromArgs(args),

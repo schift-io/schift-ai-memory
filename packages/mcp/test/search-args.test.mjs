@@ -294,7 +294,7 @@ describe("Schift MCP search argument mapping", () => {
         assert.equal(headers.get("X-Schift-MCP-Version"), "0.2.0");
         return Response.json([{ id: "bucket_1", name: "docs" }]);
       }
-      if (path === "/v2/buckets/bucket_1/documents") {
+      if (path === "/v1/buckets/bucket_1/upload") {
         assert.equal(init.method, "POST");
         const headers = new Headers(init.headers);
         assert.equal(headers.get("Authorization"), "Bearer user-token");
@@ -365,7 +365,7 @@ describe("Schift MCP search argument mapping", () => {
       });
       assert.deepEqual(calls.map((call) => call.path), [
         "/v1/buckets",
-        "/v2/buckets/bucket_1/documents",
+        "/v1/buckets/bucket_1/upload",
       ]);
     } finally {
       await client.close().catch(() => {});
