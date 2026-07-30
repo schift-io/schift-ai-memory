@@ -19,17 +19,17 @@ function hasFlag(name: string): boolean {
 }
 
 function printHelp() {
-  console.log(`schift-mcp
+  console.log(`schift-ai-memory
 
 Usage:
-  schift-mcp init [--print] [--no-login] [--bucket <company-bucket>]
-  schift-mcp login [--bucket default] [--collection __schift_ai_daily_log]
-  schift-mcp doctor
-  schift-mcp status
-  schift-mcp me
-  schift-mcp codex-marketplace
-  schift-mcp claude-code-settings [--bucket <company-bucket>]
-  schift-mcp metadata-example
+  schift-ai-memory init [--print] [--no-login] [--bucket <company-bucket>]
+  schift-ai-memory login [--bucket default] [--collection __schift_ai_daily_log]
+  schift-ai-memory doctor
+  schift-ai-memory status
+  schift-ai-memory me
+  schift-ai-memory codex-marketplace
+  schift-ai-memory claude-code-settings [--bucket <company-bucket>]
+  schift-ai-memory metadata-example
 
 The default init flow connects OAuth, writes a Claude Code settings example,
 and prints the remaining host-specific install commands. Use --print for a
@@ -123,8 +123,8 @@ function claudeCodeSettings(bucket: string) {
 async function writeClaudeCodeSettings() {
   const output = argValue("--output") ?? join(homedir(), ".claude", "settings.schift-ai-memory.example.json");
   await atomicWriteJson(output, claudeCodeSettings(companyBucket()));
-  console.log(`[schift-mcp] wrote ${output}`);
-  console.log("[schift-mcp] review and merge this into ~/.claude/settings.json when ready.");
+  console.log(`[schift-ai-memory] wrote ${output}`);
+  console.log("[schift-ai-memory] review and merge this into ~/.claude/settings.json when ready.");
 }
 
 function initPlan() {
@@ -195,25 +195,25 @@ function printInit() {
 
 async function init() {
   const plan = initPlan();
-  console.log("[schift-mcp] initializing AI Memory");
-  console.log(`[schift-mcp] route bucket=${plan.company_bucket} collection=${plan.collection}`);
-  console.log("[schift-mcp] policy summary_metadata_only; raw transcript capture is off by default");
+  console.log("[schift-ai-memory] initializing AI Memory");
+  console.log(`[schift-ai-memory] route bucket=${plan.company_bucket} collection=${plan.collection}`);
+  console.log("[schift-ai-memory] policy summary_metadata_only; raw transcript capture is off by default");
 
   if (hasFlag("--no-login")) {
-    console.log("[schift-mcp] skipped OAuth login because --no-login was set");
+    console.log("[schift-ai-memory] skipped OAuth login because --no-login was set");
   } else {
     await login();
   }
 
   await writeClaudeCodeSettings();
 
-  console.log("[schift-mcp] Codex plugin command:");
+  console.log("[schift-ai-memory] Codex plugin command:");
   console.log(codexMarketplaceCommand());
-  console.log("[schift-mcp] MCP server command:");
+  console.log("[schift-ai-memory] MCP server command:");
   console.log("npx -y @schift-io/ai-memory-mcp");
-  console.log("[schift-mcp] Cursor MCP config is available with:");
-  console.log("npx -y @schift-io/mcp init --print");
-  console.log("[schift-mcp] done");
+  console.log("[schift-ai-memory] Cursor MCP config is available with:");
+  console.log("npx -y @schift-io/ai-memory init --print");
+  console.log("[schift-ai-memory] done");
 }
 
 function metadataExample() {
@@ -430,7 +430,7 @@ async function doctor() {
       status: "needs_login",
       started_at: startedAt,
       checks: [{ name: "config", status: "failed", path: configPath(), error: String(error).slice(0, 200) }],
-      next_action: "Run `npx -y @schift-io/mcp login`.",
+      next_action: "Run `npx -y @schift-io/ai-memory login`.",
     }, null, 2));
     return;
   }
@@ -445,7 +445,7 @@ async function doctor() {
       status: "legacy",
       collection,
       recommended_collection: collectionName(),
-      next_action: "Run `npx -y @schift-io/mcp login` to move new installs to the reserved __schift_ namespace.",
+      next_action: "Run `npx -y @schift-io/ai-memory login` to move new installs to the reserved __schift_ namespace.",
     });
   }
   if (!apiKey) {
@@ -461,7 +461,7 @@ async function doctor() {
         local_status: stringValue(config.status) ?? null,
       },
       checks,
-      next_action: "Run `npx -y @schift-io/mcp login`.",
+      next_action: "Run `npx -y @schift-io/ai-memory login`.",
     }, null, 2));
     return;
   }
@@ -556,7 +556,7 @@ async function login() {
 
   const codePromise = waitForOAuthCode(port, state);
   openBrowser(authorizeUrl.toString());
-  console.log("[schift-mcp] waiting for browser login...");
+  console.log("[schift-ai-memory] waiting for browser login...");
   const code = await codePromise;
   const token = await exchangeCodeForKey(code, codeVerifier);
   const apiKey = token.credential?.api_key ?? token.api_key ?? token.key ?? token.access_token;
@@ -598,7 +598,7 @@ async function login() {
     refresh_after: addHours(now, 24),
     created_at: now.toISOString(),
   });
-  console.log(`[schift-mcp] connected ${configPath()}`);
+  console.log(`[schift-ai-memory] connected ${configPath()}`);
   console.log(JSON.stringify({
     bucket,
     collection,
@@ -665,7 +665,7 @@ async function main() {
     return;
   }
 
-  console.error(`[schift-mcp] unknown command: ${command}`);
+  console.error(`[schift-ai-memory] unknown command: ${command}`);
   printHelp();
   process.exit(1);
 }

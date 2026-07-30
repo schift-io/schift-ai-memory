@@ -1,11 +1,10 @@
 {
-  "name": "@schift-io/mcp",
+  "name": "@schift-io/ai-memory-npx",
   "version": "0.1.14",
-  "description": "Installer CLI for Schift memory — MCP server + Claude Code/Codex hooks. BYO-LLM: your Claude/Codex runs the agent, Schift provides memory & hybrid search.",
+  "description": "Bundled build of the Schift AI Memory installer CLI (packages/cli). 비공개 — 발행본은 @schift-io/ai-memory 를 쓴다.",
   "type": "module",
   "bin": {
-    "schift-mcp": "dist/cli.js",
-    "schift-ai-memory": "dist/cli.js"
+    "schift-ai-memory-npx": "dist/cli.js"
   },
   "main": "./dist/cli.js",
   "types": "./dist/cli.d.ts",
@@ -32,7 +31,5 @@
     "url": "git+https://github.com/schift-io/schift-ai-memory.git",
     "directory": "packages/npx"
   },
-  "publishConfig": {
-    "access": "public"
-  }
+  "private": true
 }

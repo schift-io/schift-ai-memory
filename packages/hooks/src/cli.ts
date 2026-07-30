@@ -194,17 +194,17 @@ async function main() {
         : stringValue(config.collection_id),
     });
     if (result.ok) {
-      console.error(`[schift-mcp-hooks] uploaded ${result.id}`);
+      console.error(`[schift-ai-memory-hooks] uploaded ${result.id}`);
       return;
     }
     if (result.status === 401 || result.status === 403) {
       await markConfigAuthInvalid(config, result.status, result.error);
     }
-    console.error(`[schift-mcp-hooks] upload failed: ${result.status} ${result.error ?? ""}`);
+    console.error(`[schift-ai-memory-hooks] upload failed: ${result.status} ${result.error ?? ""}`);
   }
 
   const filePath = await enqueueEvent(queueDir(), event);
-  console.error(`[schift-mcp-hooks] queued ${filePath}`);
+  console.error(`[schift-ai-memory-hooks] queued ${filePath}`);
 }
 
 main().catch(async (error) => {
@@ -224,6 +224,6 @@ main().catch(async (error) => {
   } catch {
     // Hooks must never break the host harness.
   }
-  console.error(`[schift-mcp-hooks] ${String(error).slice(0, 200)}`);
+  console.error(`[schift-ai-memory-hooks] ${String(error).slice(0, 200)}`);
   process.exit(0);
 });

@@ -24,7 +24,7 @@
     "company_bucket": {
       "type": "string",
       "title": "Company memory bucket",
-      "description": "Run `npx -y @schift-io/mcp login` first. The MCP server reads ~/.schift/ai-memory/config.json for credentials.",
+      "description": "Run `npx -y @schift-io/ai-memory login` first. The MCP server reads ~/.schift/ai-memory/config.json for credentials.",
       "default": "default",
       "required": false
     },

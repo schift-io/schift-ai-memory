@@ -22,13 +22,13 @@ function generateBearerToken(): string {
 }
 
 function printHelp() {
-  console.log(`schift-mcp
+  console.log(`schift-ai-memory-mcp
 
 Usage:
-  schift-mcp                         Start stdio MCP server
-  schift-mcp --http                  Start Streamable HTTP server at /mcp
-  schift-mcp token                   Generate an MCP bearer token
-  schift-mcp init --client <target>  Print client/deploy configuration
+  schift-ai-memory-mcp                         Start stdio MCP server
+  schift-ai-memory-mcp --http                  Start Streamable HTTP server at /mcp
+  schift-ai-memory-mcp token                   Generate an MCP bearer token
+  schift-ai-memory-mcp init --client <target>  Print client/deploy configuration
 
 Targets:
   claude        Claude Code stdio config
@@ -53,7 +53,7 @@ function printInitConfig() {
   if (client === "claude") {
     console.log(JSON.stringify({
       schift: {
-        command: "schift-mcp",
+        command: "schift-ai-memory-mcp",
         env: {
           SCHIFT_API_KEY: "sk-...",
           SCHIFT_DEFAULT_BUCKET: bucket,
@@ -67,7 +67,7 @@ function printInitConfig() {
     console.log(JSON.stringify({
       mcpServers: {
         schift: {
-          command: "schift-mcp",
+          command: "schift-ai-memory-mcp",
           env: {
             SCHIFT_API_KEY: "sk-...",
             SCHIFT_DEFAULT_BUCKET: bucket,
@@ -116,7 +116,7 @@ function printInitConfig() {
     return;
   }
 
-  console.error(`[schift-mcp] unknown init client: ${client}`);
+  console.error(`[schift-ai-memory-mcp] unknown init client: ${client}`);
   process.exit(1);
 }
 
@@ -137,7 +137,7 @@ async function runStdio() {
   const server = createServer(readConfig());
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[schift-mcp] connected on stdio");
+  console.error("[schift-ai-memory-mcp] connected on stdio");
 }
 
 function writeJson(res: ServerResponse, statusCode: number, body: unknown) {
@@ -189,8 +189,8 @@ async function runHttp() {
     process.env.SCHIFT_MCP_ALLOW_UNAUTHENTICATED !== "1"
   ) {
     console.error(
-      "[schift-mcp] SCHIFT_MCP_BEARER_TOKEN is required for HTTP mode. " +
-        "Run `schift-mcp token` to generate one, or set SCHIFT_MCP_ALLOW_UNAUTHENTICATED=1 for local-only development.",
+      "[schift-ai-memory-mcp] SCHIFT_MCP_BEARER_TOKEN is required for HTTP mode. " +
+        "Run `schift-ai-memory-mcp token` to generate one, or set SCHIFT_MCP_ALLOW_UNAUTHENTICATED=1 for local-only development.",
     );
     process.exit(1);
   }
@@ -205,7 +205,7 @@ async function runHttp() {
   const httpServer = createHttpServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
     if (req.method === "GET" && url.pathname === "/healthz") {
-      writeJson(res, 200, { status: "ok", service: "schift-mcp" });
+      writeJson(res, 200, { status: "ok", service: "schift-ai-memory-mcp" });
       return;
     }
     if (url.pathname !== "/mcp") {
@@ -266,7 +266,7 @@ async function runHttp() {
 
       await transport.handleRequest(req, res, parsedBody);
     } catch (err) {
-      console.error("[schift-mcp] http error:", err);
+      console.error("[schift-ai-memory-mcp] http error:", err);
       if (!res.headersSent) {
         writeJson(res, 500, {
           jsonrpc: "2.0",
@@ -278,7 +278,7 @@ async function runHttp() {
   });
 
   httpServer.listen(port, () => {
-    console.error(`[schift-mcp] streamable HTTP listening on http://localhost:${port}/mcp`);
+    console.error(`[schift-ai-memory-mcp] streamable HTTP listening on http://localhost:${port}/mcp`);
   });
 }
 
@@ -306,6 +306,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[schift-mcp] fatal:", err);
+  console.error("[schift-ai-memory-mcp] fatal:", err);
   process.exit(1);
 });

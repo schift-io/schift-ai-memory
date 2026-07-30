@@ -66,7 +66,7 @@ describe("schift-ai-memory CLI", () => {
     assert.equal(result.status, "needs_login");
     assert.equal(result.checks[0].name, "config");
     assert.equal(result.checks[0].status, "failed");
-    assert.match(result.next_action, /@schift-io\/mcp login/);
+    assert.match(result.next_action, /@schift-io\/ai-memory login/);
   });
 
   it("prints a metadata example", async () => {

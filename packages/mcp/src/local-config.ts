@@ -47,8 +47,8 @@ export function readMcpConfigFromEnv(options: {
   if (!apiKey) {
     if (options.requireApiKey === false) return undefined;
     throw new Error(
-      `[schift-mcp] SCHIFT_API_KEY is required unless ${defaultAiMemoryConfigPath()} contains api_key. ` +
-        "Run `npx -y @schift-io/mcp login` first.",
+      `[schift-ai-memory-mcp] SCHIFT_API_KEY is required unless ${defaultAiMemoryConfigPath()} contains api_key. ` +
+        "Run `npx -y @schift-io/ai-memory login` first.",
     );
   }
   const apiBaseUrl =

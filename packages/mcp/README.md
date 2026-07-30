@@ -15,7 +15,7 @@ npm install -g @schift-io/ai-memory-mcp
 Or run without a global install:
 
 ```bash
-npx -y @schift-io/mcp login
+npx -y @schift-io/ai-memory login
 npx -y @schift-io/ai-memory-mcp
 ```
 

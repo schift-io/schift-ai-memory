@@ -8,7 +8,7 @@ Installable AI work memory for Schift users.
 ## Quick Start
 
 ```bash
-npx -y @schift-io/mcp init
+npx -y @schift-io/ai-memory init
 ```
 
 This opens Schift in your browser, signs you in, creates a dedicated AI Memory
@@ -64,13 +64,13 @@ See the full comparison:
 ## Commands
 
 ```bash
-npx -y @schift-io/mcp init
-npx -y @schift-io/mcp init --print
-npx -y @schift-io/mcp login
-npx -y @schift-io/mcp doctor --search
-npx -y @schift-io/mcp codex-marketplace
-npx -y @schift-io/mcp claude-code-settings --print
-npx -y @schift-io/mcp metadata-example
+npx -y @schift-io/ai-memory init
+npx -y @schift-io/ai-memory init --print
+npx -y @schift-io/ai-memory login
+npx -y @schift-io/ai-memory doctor --search
+npx -y @schift-io/ai-memory codex-marketplace
+npx -y @schift-io/ai-memory claude-code-settings --print
+npx -y @schift-io/ai-memory metadata-example
 ```
 
 Scoped package form also works:

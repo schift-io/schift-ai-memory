@@ -73,7 +73,7 @@ Schift AI Memory는 범위가 더 좁고 운영 로그에 가깝습니다.
 권장 시작 명령:
 
 ```bash
-npx -y @schift-io/mcp init
+npx -y @schift-io/ai-memory init
 ```
 
 이 명령은 다음 순서로 동작합니다.
@@ -92,7 +92,7 @@ npx -y @schift-io/mcp init
 저장 위치를 명시하고 싶으면 이렇게 실행합니다.
 
 ```bash
-npx -y @schift-io/mcp init --bucket default --collection __schift_ai_daily_log
+npx -y @schift-io/ai-memory init --bucket default --collection __schift_ai_daily_log
 ```
 
 scoped package 형태도 사용할 수 있습니다.
@@ -104,20 +104,20 @@ npx -y --package @schift-io/ai-memory schift-ai-memory init
 OAuth 연결만 하고 host 설정 파일은 만들고 싶지 않다면 다음을 씁니다.
 
 ```bash
-npx -y @schift-io/mcp login
+npx -y @schift-io/ai-memory login
 ```
 
 설치된 credential, bucket 접근, collection 라우팅, role package 상태를
 확인하려면 다음을 씁니다.
 
 ```bash
-npx -y @schift-io/mcp doctor --search
+npx -y @schift-io/ai-memory doctor --search
 ```
 
 ## 설치 계획 미리 보기
 
 ```bash
-npx -y @schift-io/mcp init --print
+npx -y @schift-io/ai-memory init --print
 ```
 
 OAuth를 열거나 파일을 쓰지 않고 Codex, Claude, Claude Desktop, Cursor, MCP에
@@ -128,7 +128,7 @@ OAuth를 열거나 파일을 쓰지 않고 Codex, Claude, Claude Desktop, Cursor
 Codex marketplace 설치 명령을 출력합니다.
 
 ```bash
-npx -y @schift-io/mcp codex-marketplace
+npx -y @schift-io/ai-memory codex-marketplace
 ```
 
 현재 출력:
@@ -150,13 +150,13 @@ Codex plugin bundle에는 다음이 들어갑니다.
 Claude Code hook 설정을 출력합니다.
 
 ```bash
-npx -y @schift-io/mcp claude-code-settings --print
+npx -y @schift-io/ai-memory claude-code-settings --print
 ```
 
 예시 설정 파일을 생성합니다.
 
 ```bash
-npx -y @schift-io/mcp claude-code-settings
+npx -y @schift-io/ai-memory claude-code-settings
 ```
 
 생성 위치:
@@ -199,7 +199,7 @@ queue-only 모드가 필요하면 `SCHIFT_AI_MEMORY_UPLOAD=0`을 설정하면 �
 이벤트 예시는 다음 명령으로 확인할 수 있습니다.
 
 ```bash
-npx -y @schift-io/mcp metadata-example
+npx -y @schift-io/ai-memory metadata-example
 ```
 
 대략 이런 형태입니다.

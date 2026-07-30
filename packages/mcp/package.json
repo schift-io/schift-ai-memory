@@ -4,8 +4,7 @@
   "description": "MCP server component for Schift AI Memory.",
   "type": "module",
   "bin": {
-    "schift-ai-memory-mcp": "dist/cli.js",
-    "schift-mcp": "dist/cli.js"
+    "schift-ai-memory-mcp": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
