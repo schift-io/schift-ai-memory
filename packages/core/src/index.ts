@@ -44,6 +44,24 @@ export interface AiMemoryJobMetadata {
   commit?: string;
 }
 
+/** 이 작업이 쓴 모델과 토큰. 비용 거버넌스(누가·무슨 일에·얼마)의 분자다.
+ *
+ * 값이 없으면 **필드를 빼고 보낸다** — 0으로 채우면 "안 썼다"와 "모른다"가
+ * 구분되지 않아 수신측 집계가 조용히 틀어진다. */
+export interface AiMemoryUsage {
+  /** 하네스가 보고한 모델 식별자 그대로. 정규화는 수신측이 한다. */
+  model?: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  /** 캐시 히트분. 있으면 실제 원가가 input_tokens 기준보다 낮다. */
+  cached_input_tokens?: number;
+  total_tokens?: number;
+  /** 하네스가 비용을 직접 주는 경우에만. 우리가 추정해 넣지 않는다. */
+  cost_usd?: number;
+  /** 이 작업에서 실행된 LLM 요청 수(멀티턴/도구호출 포함). */
+  requests?: number;
+}
+
 export interface AiMemoryContentPolicy {
   raw_transcript: boolean;
   artifacts: "none" | "selected" | "all";
@@ -85,6 +103,8 @@ export interface AiMemoryEvent {
   collection?: string;
   session_id?: string;
   job: AiMemoryJobMetadata;
+  /** 이 작업의 모델·토큰 사용량. 하네스가 안 주면 통째로 없다. */
+  usage?: AiMemoryUsage;
   summary?: string;
   metadata?: Record<string, unknown>;
   schift?: SchiftAiMemoryEnvelopeMetadata;
@@ -106,6 +126,7 @@ export interface CreateAiMemoryEventInput {
   collection?: string;
   session_id?: string;
   job: AiMemoryJobMetadata;
+  usage?: AiMemoryUsage;
   summary?: string;
   metadata?: Record<string, unknown>;
   schift?: SchiftAiMemoryEnvelopeMetadata;
@@ -434,6 +455,61 @@ export async function uploadEvent(options: {
     status: response.status,
     id: typeof body.id === "string" ? body.id : jobId ?? options.event.id,
   };
+}
+
+/** 사용량만 따로 비용 원장으로 보낸다.
+ *
+ * 문서 업로드(`uploadEvent`)는 **내용**(무슨 일을 했나)을 담고, 이건 **비용**
+ * (얼마 썼나)을 담는다. 둘을 한 요청으로 합치지 않는 이유: 문서 적재는 비동기
+ * 잡이라 실패·지연이 잦은데, 비용 집계까지 거기 묶이면 대시보드 숫자가 문서
+ * 파이프라인 상태에 좌우된다. 실패해도 훅 전체를 실패시키지 않는다(best-effort).
+ *
+ * 서버는 `event_id` 로 멱등 처리하므로 재전송이 안전하다. */
+export async function uploadUsage(options: {
+  apiBaseUrl: string;
+  apiKey: string;
+  event: AiMemoryEvent;
+}): Promise<UploadResult> {
+  const usage = options.event.usage;
+  if (!usage) return { ok: true, status: 204 };
+
+  const baseUrl = options.apiBaseUrl.replace(/\/+$/, "");
+  const job = options.event.job;
+  const body = {
+    event_id: options.event.id,
+    harness: options.event.harness,
+    user_id: options.event.user_id,
+    session_id: options.event.session_id,
+    title: job.title?.slice(0, 200),
+    status: job.status,
+    repo: job.repo,
+    branch: job.branch,
+    model: usage.model,
+    input_tokens: usage.input_tokens,
+    output_tokens: usage.output_tokens,
+    cached_input_tokens: usage.cached_input_tokens,
+    total_tokens: usage.total_tokens,
+    cost_usd: usage.cost_usd,
+  };
+
+  try {
+    const response = await fetch(`${baseUrl}/v1/usage/coding-events`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${options.apiKey}`,
+        "Content-Type": "application/json",
+        "X-Schift-Client": "ai-memory",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      return { ok: false, status: response.status, error: detail.slice(0, 300) };
+    }
+    return { ok: true, status: response.status };
+  } catch (error) {
+    return { ok: false, status: 0, error: String(error).slice(0, 200) };
+  }
 }
 
 export async function readJsonFile<T>(filePath: string): Promise<T> {

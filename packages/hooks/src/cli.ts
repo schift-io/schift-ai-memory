@@ -4,10 +4,12 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import {
   AiMemorySource,
+  AiMemoryUsage,
   atomicWriteJson,
   createAiMemoryEvent,
   enqueueEvent,
   uploadEvent,
+  uploadUsage,
 } from "@schift-io/ai-memory-core";
 
 interface LocalConfig {
@@ -63,6 +65,67 @@ function stringValue(value: unknown): string | undefined {
 
 function sourceForCommand(command: string): AiMemorySource {
   return command.startsWith("claude") ? "claude-code" : "codex";
+}
+
+function numberValue(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+/** 하네스가 보고한 토큰/모델을 꺼낸다.
+ *
+ * Claude Code 와 Codex 가 서로 다른 키로 준다(그리고 버전마다 바뀐다). 그래서
+ * 후보 키를 모두 훑되, **없으면 그 필드를 만들지 않는다** — 0으로 채우면
+ * "안 썼다"와 "못 읽었다"가 같아져서 수신측 집계가 조용히 틀어진다. */
+function extractUsage(payload: Record<string, unknown>): AiMemoryUsage | undefined {
+  const raw =
+    record(payload.usage) ??
+    record(payload.token_usage) ??
+    record(payload.tokenUsage) ??
+    record(record(payload.message)?.usage) ??
+    {};
+
+  const input =
+    numberValue(raw.input_tokens) ?? numberValue(raw.inputTokens) ?? numberValue(raw.prompt_tokens);
+  const output =
+    numberValue(raw.output_tokens) ??
+    numberValue(raw.outputTokens) ??
+    numberValue(raw.completion_tokens);
+  const cached =
+    numberValue(raw.cache_read_input_tokens) ??
+    numberValue(raw.cached_input_tokens) ??
+    numberValue(raw.cacheReadInputTokens);
+  const total =
+    numberValue(raw.total_tokens) ??
+    numberValue(raw.totalTokens) ??
+    (input !== undefined || output !== undefined ? (input ?? 0) + (output ?? 0) : undefined);
+
+  const usage: AiMemoryUsage = {};
+  const model =
+    stringValue(payload.model) ?? stringValue(raw.model) ?? stringValue(record(payload.message)?.model);
+  if (model) usage.model = model;
+  if (input !== undefined) usage.input_tokens = input;
+  if (output !== undefined) usage.output_tokens = output;
+  if (cached !== undefined) usage.cached_input_tokens = cached;
+  if (total !== undefined) usage.total_tokens = total;
+
+  const cost = numberValue(payload.cost_usd) ?? numberValue(raw.cost_usd) ?? numberValue(payload.total_cost_usd);
+  if (cost !== undefined) usage.cost_usd = cost;
+
+  const requests = numberValue(payload.num_requests) ?? numberValue(raw.requests);
+  if (requests !== undefined) usage.requests = requests;
+
+  return Object.keys(usage).length > 0 ? usage : undefined;
 }
 
 function queueDir(): string {
@@ -164,10 +227,12 @@ async function main() {
       branch: stringValue(payload.branch),
       commit: stringValue(payload.commit),
     },
+    usage: extractUsage(payload),
     summary,
     metadata: {
       hook_command: command,
       payload_keys: Object.keys(payload).sort(),
+      usage_captured: Boolean(extractUsage(payload)),
       config_metadata: {
         has_api_key: Boolean(config.api_key),
         has_org_id: Boolean(orgId),
@@ -185,6 +250,15 @@ async function main() {
   const apiKey = process.env.SCHIFT_API_KEY ?? stringValue(config.api_key);
   const apiBaseUrl = process.env.SCHIFT_API_BASE_URL ?? stringValue(config.api_base_url) ?? "https://api.schift.io";
   if (apiKey && process.env.SCHIFT_AI_MEMORY_UPLOAD !== "0") {
+    // 비용 원장 먼저. 문서 적재(아래)는 비동기 잡이라 실패·지연이 잦은데,
+    // 대시보드 숫자가 그 파이프라인 상태에 좌우되면 안 된다. 실패해도 계속 간다.
+    const usageResult = await uploadUsage({ apiBaseUrl, apiKey, event });
+    if (!usageResult.ok) {
+      console.error(
+        `[schift-ai-memory-hooks] usage upload failed status=${usageResult.status} ${usageResult.error ?? ""}`,
+      );
+    }
+
     const result = await uploadEvent({
       apiBaseUrl,
       apiKey,
