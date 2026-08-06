@@ -28,8 +28,12 @@ Usage:
   schift-ai-memory status
   schift-ai-memory me
   schift-ai-memory codex-marketplace
-  schift-ai-memory claude-code-settings [--bucket <company-bucket>]
+  schift-ai-memory claude-code-settings [--scope project|user] [--dry-run]
   schift-ai-memory metadata-example
+
+claude-code-settings installs the hooks into settings.json (existing hooks are
+preserved). --scope project keeps them in this repo; --dry-run only writes an
+example file. Verify with: schift-ai-memory doctor
 
 The default init flow connects OAuth, writes a Claude Code settings example,
 and prints the remaining host-specific install commands. Use --print for a

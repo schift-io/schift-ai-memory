@@ -46,7 +46,9 @@ describe("schift-ai-memory CLI", () => {
     ]);
     assert.match(stdout, /initializing AI Memory/);
     assert.match(stdout, /skipped OAuth login/);
-    assert.match(stdout, /wrote/);
+    // 훅은 이제 **실제로 설치**된다(예전엔 예제 파일만 쓰고 "wrote"만 찍었다).
+    // --output 을 준 경우에도 설치 경로로 간다.
+    assert.match(stdout, /installed hooks into|wrote/);
     assert.match(stdout, /codex plugin marketplace add/);
 
     const settings = JSON.parse(await readFile(output, "utf8"));

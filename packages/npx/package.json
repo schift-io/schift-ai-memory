@@ -1,6 +1,6 @@
 {
   "name": "@schift-io/ai-memory-npx",
-  "version": "0.1.14",
+  "version": "0.2.0",
   "description": "Bundled build of the Schift AI Memory installer CLI (packages/cli). 비공개 — 발행본은 @schift-io/ai-memory 를 쓴다.",
   "type": "module",
   "bin": {
