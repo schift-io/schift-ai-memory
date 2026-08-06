@@ -45,6 +45,43 @@ function collectionName(): string {
   return argValue("--collection") ?? process.env.SCHIFT_COLLECTION ?? "__schift_ai_daily_log";
 }
 
+/** 프로젝트 스코프 상태 디렉터리(`.schift/`). oh-my-codex 의 `.omx/` 와 같은 자리다.
+ *
+ * 왜 필요한가: 지금은 상태가 `~/.schift/ai-memory/` 하나뿐이라 **레포마다 다른 설정을
+ * 가질 수 없다**. 회사 레포와 개인 레포가 같은 버킷으로 섞이고, 어떤 스코프로 설치했는지
+ * 기록이 없어 재실행 결과가 예측 불가능하다. */
+function projectStateDir(): string {
+  return join(process.cwd(), ".schift");
+}
+
+function setupScopePath(): string {
+  return join(projectStateDir(), "setup-scope.json");
+}
+
+/** 스코프 결정: `--scope project|user`. 명시 안 하면 프로젝트에 기록이 있으면 project,
+ * 없으면 user. **추측해서 프로젝트 파일을 만들지 않는다** — 남의 레포에 우리 디렉터리가
+ * 조용히 생기면 그게 먼저 사고다. */
+async function resolveScope(): Promise<"project" | "user"> {
+  const explicit = argValue("--scope");
+  if (explicit === "project" || explicit === "user") return explicit;
+  try {
+    await readFile(setupScopePath(), "utf8");
+    return "project";
+  } catch {
+    return "user";
+  }
+}
+
+async function writeSetupScope(scope: "project" | "user"): Promise<void> {
+  if (scope !== "project") return;
+  await atomicWriteJson(setupScopePath(), {
+    scope,
+    bucket: companyBucket(),
+    collection: collectionName(),
+    recorded_at: new Date().toISOString(),
+  });
+}
+
 function addHours(date: Date, hours: number): string {
   return new Date(date.getTime() + hours * 60 * 60 * 1000).toISOString();
 }
@@ -163,11 +200,15 @@ async function readJsonIfExists(path: string): Promise<Record<string, unknown>> 
  * 우리 것만 교체한다. env 도 기존 키를 덮어쓰지 않고 우리 키만 얹는다. */
 async function writeClaudeCodeSettings() {
   const dryRun = hasFlag("--dry-run") || hasFlag("--print");
+  const scope = await resolveScope();
+  // project 스코프면 그 레포의 .claude/settings.json 에 넣는다 — 회사 레포와
+  // 개인 레포가 같은 버킷으로 섞이지 않게 하는 유일한 방법이다.
+  const home = scope === "project" ? process.cwd() : homedir();
   const target =
     argValue("--output") ??
     (dryRun
-      ? join(homedir(), ".claude", "settings.schift-ai-memory.example.json")
-      : join(homedir(), ".claude", "settings.json"));
+      ? join(home, ".claude", "settings.schift-ai-memory.example.json")
+      : join(home, ".claude", "settings.json"));
 
   const ours = claudeCodeSettings(companyBucket());
 
@@ -194,7 +235,8 @@ async function writeClaudeCodeSettings() {
   };
 
   await atomicWriteJson(target, merged);
-  console.log(`[schift-ai-memory] installed hooks into ${target}`);
+  await writeSetupScope(scope);
+  console.log(`[schift-ai-memory] installed hooks into ${target} (scope: ${scope})`);
   console.log(`[schift-ai-memory] events: ${Object.keys(ourHooks).join(", ")}`);
   console.log("[schift-ai-memory] existing non-Schift hooks were preserved.");
   console.log("[schift-ai-memory] verify with: npx @schift-io/ai-memory doctor");
