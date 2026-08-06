@@ -23,6 +23,10 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm audit --audit-level=high
+      # ⚠️ NPM_TOKEN 이 이 repo 에 설정돼 있지 않다(2026-08-06 v0.3.0 에서 확인).
+      # build·lint·test·audit 은 다 통과하고 여기서만 ENEEDAUTH 로 죽는다 —
+      # 로그를 안 열면 "발행됐겠지"로 오독하기 쉽다. 토큰을 넣기 전까지는
+      # 로컬에서 `npm publish --workspaces --access public` 로 올린다.
       - run: npm publish --workspaces --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
