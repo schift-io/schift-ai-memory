@@ -1,6 +1,6 @@
 {
   "name": "@schift-io/ai-memory-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared metadata, redaction, queue, and upload helpers for Schift AI Memory.",
   "type": "module",
   "main": "./dist/index.js",

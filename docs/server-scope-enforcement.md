@@ -132,4 +132,26 @@ collection: __schift_ai_daily_log
 - A key scoped to `default` cannot search or upload to another bucket.
 - A key scoped to `__schift_ai_daily_log` cannot write to a different collection.
 - A revoked key returns `401` or `403`.
+
+## 구현 현황 (2026-08-06, scope/retention 분리 태스크)
+
+- **저장까지는 됨.** `schift-api` `api_keys.allowed_buckets`/`allowed_collections`
+  컬럼(SQLite/Postgres 둘 다)과 `store.create_api_key(...)`/`revoke_api_keys_for_user(...)`
+  가 이 값을 정확히 쓰고 읽는다. CLI ai_memory 키 발급 경로
+  (`server/auth/sessions.py build_cli_exchange_payload`)도 이제
+  `allowed_buckets=[bucket_id]`, `allowed_collections=[collection_id]` 로
+  기본 bucket/collection 만 채운다(둘 다 확보 못 하면 `[]` = 전부 거부, 무제한
+  이 아님).
+- **요청 시점 강제(이 문서 「Required Enforcement」 표의 핵심)는 아직 없다.**
+  `server/deps.py`(auth 미들웨어)와 `server/features/bucket_upload/metadata.py`
+  등 실제 검사 지점이 `allowed_buckets`/`allowed_collections` 를 아직 읽지
+  않는다 — 같은 org 안의 다른 bucket 에 이 키로 write/search 가 여전히
+  통과한다. 다음 단계는 `resolve_auth_context`(deps.py)가
+  `api_key_record.get("allowed_buckets")`/`allowed_collections` 를 auth_context
+  에 실어 보내고, bucket/collection 을 다루는 라우트가 그 목록과 대조해
+  `403` 을 내는 것 — store 계약은 끝났고 미들웨어 배선만 남았다.
+- **offboarding 시 키 폐기는 됨.** `remove_member_from_org` 가
+  `revoke_api_keys_for_user`(즉시 만료, 행은 안 지움)를 호출해 감사 로그
+  `org.member_offboarded.keys_revoked` 를 남긴다 — 위 「A revoked key returns
+  401 or 403」 항목은 이제 참이다(`schift-api/tests/test_offboarding_lifecycle_scope_retention.py`).
 - Workflow tools require a separate workflow execution scope.

@@ -67,11 +67,24 @@ See the full comparison:
 npx -y @schift-io/ai-memory init
 npx -y @schift-io/ai-memory init --print
 npx -y @schift-io/ai-memory login
+npx -y @schift-io/ai-memory install            # every harness found on this host
+npx -y @schift-io/ai-memory install --dry-run  # show targets, write nothing
+npx -y @schift-io/ai-memory uninstall          # remove only Schift-owned hooks
 npx -y @schift-io/ai-memory doctor --search
+npx -y @schift-io/ai-memory flush              # send whatever the hooks queued
 npx -y @schift-io/ai-memory codex-marketplace
-npx -y @schift-io/ai-memory claude-code-settings --print
 npx -y @schift-io/ai-memory metadata-example
 ```
+
+`install` detects the harnesses actually present (Claude Code, Codex, …) and
+writes hooks into each one's own config file. Nothing is written for a harness
+that is not installed, existing non-Schift hooks are preserved, and re-running
+is idempotent. `claude-code-settings` still works as an alias.
+
+Hooks send a little of the backlog on every run; `flush` empties it and is what
+a scheduled job should call. Events that can never succeed (revoked key,
+malformed payload) move to `queue/quarantine` rather than being dropped, and
+`flush` exits 2 when that happens.
 
 Scoped package form also works:
 
