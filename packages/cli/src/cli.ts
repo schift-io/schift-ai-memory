@@ -9,10 +9,13 @@ import {
   atomicWriteJson,
   createAiMemoryEvent,
   detectHarnesses,
+  drainOutbox,
   installedEvents,
   listHarnesses,
   mergeHookEvents,
+  outboxStatus,
   registerDefaultHarnesses,
+  uploadEvent,
 } from "@schift-io/ai-memory-core";
 
 const CODING_AGENT_ROLE_PACKAGE_ID = "schift.coding-agent.default";
@@ -40,6 +43,7 @@ Usage:
                           [--output <hooks-file>]
   schift-ai-memory uninstall [--scope project|user]
   schift-ai-memory claude-code-settings [--scope project|user] [--dry-run]
+  schift-ai-memory flush [--limit <n>]
   schift-ai-memory metadata-example
 
 install detects the AI harnesses actually present on this host (Claude Code,
@@ -52,6 +56,11 @@ a path you name instead of the detected one; it needs a single target, so pass
 --harness <id> when more than one harness is present.
 
 claude-code-settings is an alias for install, kept for older docs.
+
+flush sends whatever the hooks could not deliver (offline, API blip). Hooks
+drain a little on every run; flush empties the backlog and is what a scheduled
+job should call. Events that can never succeed are moved to queue/quarantine
+rather than dropped, and flush exits 2 when that happens.
 
 The default init flow connects OAuth, installs the hooks, and prints the
 remaining host-specific commands. Use --print for a machine-readable plan.
@@ -117,6 +126,12 @@ function appBaseUrl(): string {
 
 function configPath(): string {
   return process.env.SCHIFT_AI_MEMORY_CONFIG ?? join(homedir(), ".schift", "ai-memory", "config.json");
+}
+
+/** 훅과 **같은 경로**를 봐야 한다. 여기가 어긋나면 flush 가 빈 큐를 비우고
+ * "밀린 것 없음"이라고 보고하는데 실제로는 다른 디렉터리에 쌓여 있다. */
+function queueDir(): string {
+  return process.env.SCHIFT_AI_MEMORY_QUEUE_DIR ?? join(homedir(), ".schift", "ai-memory", "queue");
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -654,6 +669,19 @@ async function doctor() {
     );
   }
 
+  // 아웃박스 백로그. 훅이 계속 돌아도 서버로 못 나가고 있으면 대시보드 숫자가
+  // 조용히 낮아진다 — 에러가 안 나는 종류의 고장이라 여기서 드러내야 한다.
+  const backlog = await outboxStatus(queueDir());
+  checks.push({
+    name: "outbox",
+    status: backlog.quarantined > 0 ? "quarantined" : backlog.pending > 0 ? "backlog" : "ok",
+    path: queueDir(),
+    ...backlog,
+    ...(backlog.pending > 0 || backlog.quarantined > 0
+      ? { next_action: "Run `npx -y @schift-io/ai-memory flush`." }
+      : {}),
+  });
+
   const apiKey = stringValue(config.api_key);
   const baseUrl = stringValue(config.api_base_url) ?? apiBaseUrl();
   const bucketName = stringValue(config.bucket) ?? companyBucket();
@@ -841,6 +869,46 @@ async function me() {
   console.log(JSON.stringify(await fetchMe(apiKey), null, 2));
 }
 
+/**
+ * 밀린 큐를 끝까지 내보낸다.
+ *
+ * 훅도 매번 조금씩 비우지만(세션을 붙잡지 않으려고 10건 제한) 백로그가 크거나
+ * 사용자가 한동안 세션을 안 열면 그것만으로는 안 따라잡힌다. 주기 실행(launchd·
+ * cron)과 수동 복구가 부르는 자리다.
+ */
+async function flushOutbox(): Promise<number> {
+  let config: Record<string, unknown>;
+  try {
+    config = await readLocalConfig();
+  } catch {
+    console.error("[schift-ai-memory] not logged in — run `npx -y @schift-io/ai-memory login`.");
+    return 1;
+  }
+  const apiKey = stringValue(config.api_key);
+  if (!apiKey) {
+    console.error("[schift-ai-memory] no api key in local config — run `login`.");
+    return 1;
+  }
+  const baseUrl = stringValue(config.api_base_url) ?? apiBaseUrl();
+  const limit = Number.parseInt(argValue("--limit") ?? "", 10);
+
+  const report = await drainOutbox(
+    queueDir(),
+    async (queued) =>
+      uploadEvent({
+        apiBaseUrl: baseUrl,
+        apiKey,
+        event: queued as unknown as Parameters<typeof uploadEvent>[0]["event"],
+        collectionId: stringValue(config.collection_id),
+      }),
+    Number.isFinite(limit) && limit > 0 ? { limit } : {},
+  );
+  console.log(JSON.stringify({ ...report, backlog: await outboxStatus(queueDir()) }, null, 2));
+  // 격리가 생겼으면 0 으로 끝내지 않는다 — cron 에 걸었을 때 조용히 성공으로
+  // 보이면 아무도 안 본다.
+  return report.quarantined > 0 ? 2 : 0;
+}
+
 async function main() {
   const command = process.argv[2] ?? "help";
   if (command === "help" || hasFlag("--help") || hasFlag("-h")) {
@@ -884,6 +952,10 @@ async function main() {
     // 그 차이가 "깔았는데 안 도는" 상태로 나타난다.
     console.log("[schift-ai-memory] note: `claude-code-settings` is now an alias for `install`.");
     process.exitCode = await installHarnessHooks();
+    return;
+  }
+  if (command === "flush") {
+    process.exitCode = await flushOutbox();
     return;
   }
   if (command === "metadata-example") {

@@ -7,6 +7,7 @@ import {
   AiMemoryUsage,
   atomicWriteJson,
   createAiMemoryEvent,
+  drainOutbox,
   enqueueEvent,
   uploadEvent,
   uploadUsage,
@@ -202,17 +203,17 @@ async function main() {
       branch: stringValue(payload.branch),
       commit: stringValue(payload.commit),
     },
-    usage: resolvedUsage,
+    usage: resolvedUsage
+      ? { ...resolvedUsage, tools: activity.tools, turns: activity.turns }
+      : undefined,
     summary,
     metadata: {
       hook_command: command,
       payload_keys: Object.keys(payload).sort(),
       usage_captured: Boolean(resolvedUsage),
+      // 도구 호출·턴은 **usage 안에** 있다(원장으로 같이 가야 해서). 여기 또 적으면
+      // 두 벌이 갈라진다.
       usage_source: resolvedUsage ? usageSource : "none",
-      // 무슨 도구를 몇 번 불렀나 — "얼마 썼다" 옆에 "뭘 했다"를 놓는다.
-      // 이름과 횟수만 담는다(인자는 담지 않는다).
-      tools: activity.tools ?? null,
-      turns: activity.turns ?? null,
       config_metadata: {
         has_api_key: Boolean(config.api_key),
         has_org_id: Boolean(orgId),
@@ -229,36 +230,71 @@ async function main() {
 
   const apiKey = process.env.SCHIFT_API_KEY ?? stringValue(config.api_key);
   const apiBaseUrl = process.env.SCHIFT_API_BASE_URL ?? stringValue(config.api_base_url) ?? "https://api.schift.io";
-  if (apiKey && process.env.SCHIFT_AI_MEMORY_UPLOAD !== "0") {
-    // 비용 원장 먼저. 문서 적재(아래)는 비동기 잡이라 실패·지연이 잦은데,
-    // 대시보드 숫자가 그 파이프라인 상태에 좌우되면 안 된다. 실패해도 계속 간다.
+
+  // 비용 원장 먼저, 그리고 **인라인으로** 보낸다. 문서 적재(아래 아웃박스)는
+  // 비동기 잡이라 실패·지연이 잦은데 대시보드 숫자가 그 상태에 좌우되면 안 된다.
+  // 세션 키로 덮어쓰는 엔드포인트라 여러 번 보내도 중복 계상되지 않는다.
+  if (apiKey && process.env.SCHIFT_AI_MEMORY_UPLOAD !== "0" && event.usage) {
     const usageResult = await uploadUsage({ apiBaseUrl, apiKey, event });
     if (!usageResult.ok) {
       console.error(
         `[schift-ai-memory-hooks] usage upload failed status=${usageResult.status} ${usageResult.error ?? ""}`,
       );
+      if (usageResult.status === 401 || usageResult.status === 403) {
+        await markConfigAuthInvalid(config, usageResult.status, usageResult.error);
+      }
     }
-
-    const result = await uploadEvent({
-      apiBaseUrl,
-      apiKey,
-      event,
-      collectionId: sessionBucket
-        ? stringValue(config.session_collection_id)
-        : stringValue(config.collection_id),
-    });
-    if (result.ok) {
-      console.error(`[schift-ai-memory-hooks] uploaded ${result.id}`);
-      return;
-    }
-    if (result.status === 401 || result.status === 403) {
-      await markConfigAuthInvalid(config, result.status, result.error);
-    }
-    console.error(`[schift-ai-memory-hooks] upload failed: ${result.status} ${result.error ?? ""}`);
   }
 
+  // **항상 큐를 거친다.** 예전에는 인라인 업로드가 성공하면 큐를 건너뛰고,
+  // 실패하면 파일로 남긴 뒤 아무도 그걸 비우지 않았다 — 노트북이 잠깐 오프라인이었던
+  // 세션의 지출은 그대로 유실됐고 에러도 안 났다. 이제 경로가 하나다: 넣고, 비운다.
   const filePath = await enqueueEvent(queueDir(), event);
-  console.error(`[schift-ai-memory-hooks] queued ${filePath}`);
+
+  if (!apiKey || process.env.SCHIFT_AI_MEMORY_UPLOAD === "0") {
+    console.error(`[schift-ai-memory-hooks] queued ${filePath} (upload disabled)`);
+    return;
+  }
+
+  // 인증 실패는 아웃박스가 "격리"로만 처리하면 config 에는 계속 connected 로 남는다.
+  // 그러면 doctor 가 멀쩡하다고 말하는데 실제로는 아무것도 안 올라간다 — 우리가
+  // 제일 못 잡는 종류의 고장이다. 배달 중에 본 인증 실패를 여기서 붙잡아 표시한다.
+  let authFailure: { status: number; error?: string } | undefined;
+
+  const report = await drainOutbox(
+    queueDir(),
+    async (queued) => {
+      const result = await uploadEvent({
+        apiBaseUrl,
+        apiKey,
+        event: queued as unknown as Parameters<typeof uploadEvent>[0]["event"],
+        collectionId: sessionBucket
+          ? stringValue(config.session_collection_id)
+          : stringValue(config.collection_id),
+      });
+      if (!result.ok && (result.status === 401 || result.status === 403)) {
+        authFailure = { status: result.status, error: result.error };
+      }
+      return result;
+    },
+    // 훅은 사용자의 세션 안에서 돈다. 밀린 게 많아도 이 자리에서 다 비우지 않는다 —
+    // 세션을 붙잡느니 다음 훅에서 이어 보낸다.
+    { limit: 10 },
+  );
+
+  if (authFailure) {
+    await markConfigAuthInvalid(config, authFailure.status, authFailure.error);
+  }
+
+  if (report.quarantined > 0) {
+    // 격리는 사람이 봐야 하는 상태다. 조용히 넘어가면 커버리지가 깎인 채로 굳는다.
+    console.error(
+      `[schift-ai-memory-hooks] ${report.quarantined} event(s) quarantined — run: npx @schift-io/ai-memory doctor`,
+    );
+  }
+  console.error(
+    `[schift-ai-memory-hooks] outbox delivered=${report.delivered} retrying=${report.retrying} deferred=${report.deferred}`,
+  );
 }
 
 main().catch(async (error) => {

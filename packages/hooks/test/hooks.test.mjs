@@ -202,8 +202,16 @@ describe("AI memory hooks", () => {
       assert.equal(updatedConfig.last_upload_error.status, 401);
       assert.match(updatedConfig.last_upload_error.error, /revoked/);
 
-      const files = (await readdir(dir)).filter((name) => name.endsWith(".json") && name !== "config.json");
-      assert.equal(files.length, 1);
+      // 401 은 재시도해도 같은 답이 온다. 활성 큐에서 빠지되 **버려지지는 않는다** —
+      // 격리에 남아야 "왜 안 올라갔나"를 나중에 물을 수 있다.
+      const active = (await readdir(dir)).filter(
+        (name) => name.endsWith(".json") && name !== "config.json" && !name.endsWith(".state.json"),
+      );
+      assert.deepEqual(active, [], "a revoked-key event must not keep spinning in the queue");
+      const held = (await readdir(join(dir, "quarantine"))).filter(
+        (name) => name.endsWith(".json") && !name.endsWith(".state.json"),
+      );
+      assert.equal(held.length, 1, "the event is preserved for inspection");
     } finally {
       await rm(dir, { recursive: true, force: true });
       await new Promise((resolve) => server.close(resolve));

@@ -13,6 +13,7 @@ export * from "./cclg-effective-view.js";
 export * from "./harness.js";
 export * from "./harness-adapters.js";
 export * from "./harness-parsers.js";
+export * from "./outbox.js";
 
 export type AiMemorySource =
   | "codex"
@@ -63,6 +64,11 @@ export interface AiMemoryUsage {
   cost_usd?: number;
   /** 이 작업에서 실행된 LLM 요청 수(멀티턴/도구호출 포함). */
   requests?: number;
+  /** 어떤 도구를 몇 번 불렀나. 토큰만으로는 "얼마 썼다"까지고 "뭘 했다"가 안 나온다 —
+   * 귀속 화면이 세는 것은 이쪽이다. **이름과 횟수만** 담고 인자는 담지 않는다. */
+  tools?: Array<{ name: string; count: number }>;
+  /** 관측된 어시스턴트 턴 수. requests 와 달리 트랜스크립트에서 직접 센 값이다. */
+  turns?: number;
 }
 
 export interface AiMemoryContentPolicy {
@@ -493,6 +499,10 @@ export async function uploadUsage(options: {
     cached_input_tokens: usage.cached_input_tokens,
     total_tokens: usage.total_tokens,
     cost_usd: usage.cost_usd,
+    // 원장에 "뭘 했다"를 같이 싣는다. 문서 metadata 에만 두면 귀속 화면이
+    // 문서 적재 파이프라인(비동기·실패 잦음)에 인질로 잡힌다.
+    tools: usage.tools,
+    turns: usage.turns,
   };
 
   try {
