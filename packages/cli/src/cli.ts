@@ -120,11 +120,84 @@ function claudeCodeSettings(bucket: string) {
   };
 }
 
+/** 우리가 넣은 훅에만 붙는 표식. 이게 있어야 재설치·제거 때 **남의 훅을 안 건드리고**
+ * 우리 것만 골라낼 수 있다. 사용자가 이미 쓰던 Stop/SessionEnd 훅이 있는 게 정상이다. */
+// 실제 커맨드 문자열(`npx -y @schift-io/ai-memory-hooks ...`)에 들어 있는 부분이어야
+// 한다. 패키지 스코프가 아닌 레포 이름("schift-ai-memory")을 마커로 두면 매칭이 안 돼
+// 재설치할 때마다 훅이 중복 등록된다(실측으로 잡음).
+const HOOK_MARKER = "@schift-io/ai-memory";
+
+function isOurHookGroup(group: unknown): boolean {
+  if (!group || typeof group !== "object") return false;
+  const hooks = (group as { hooks?: unknown }).hooks;
+  if (!Array.isArray(hooks)) return false;
+  return hooks.some(
+    (h) =>
+      h &&
+      typeof h === "object" &&
+      typeof (h as { command?: unknown }).command === "string" &&
+      (h as { command: string }).command.includes(HOOK_MARKER),
+  );
+}
+
+function mergeHookEvent(existing: unknown, ours: unknown[]): unknown[] {
+  const kept = Array.isArray(existing) ? existing.filter((g) => !isOurHookGroup(g)) : [];
+  return [...kept, ...ours];
+}
+
+async function readJsonIfExists(path: string): Promise<Record<string, unknown>> {
+  try {
+    return JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+/** Claude Code 설정에 훅을 **실제로 설치한다**.
+ *
+ * 이전에는 예제 파일만 쓰고 "직접 병합하세요"라고 안내했다. 그러면 직원이
+ * JSON 을 손으로 합쳐야 해서 설치가 사실상 안 된다 — 우리 제품 논리가
+ * "설치 커버리지가 곧 가시성"인데 그 숫자가 안 오른다.
+ *
+ * 남의 설정은 보존한다: 기존 훅 그룹 중 우리 표식이 없는 것은 그대로 두고,
+ * 우리 것만 교체한다. env 도 기존 키를 덮어쓰지 않고 우리 키만 얹는다. */
 async function writeClaudeCodeSettings() {
-  const output = argValue("--output") ?? join(homedir(), ".claude", "settings.schift-ai-memory.example.json");
-  await atomicWriteJson(output, claudeCodeSettings(companyBucket()));
-  console.log(`[schift-ai-memory] wrote ${output}`);
-  console.log("[schift-ai-memory] review and merge this into ~/.claude/settings.json when ready.");
+  const dryRun = hasFlag("--dry-run") || hasFlag("--print");
+  const target =
+    argValue("--output") ??
+    (dryRun
+      ? join(homedir(), ".claude", "settings.schift-ai-memory.example.json")
+      : join(homedir(), ".claude", "settings.json"));
+
+  const ours = claudeCodeSettings(companyBucket());
+
+  if (dryRun) {
+    await atomicWriteJson(target, ours);
+    console.log(`[schift-ai-memory] wrote example: ${target}`);
+    console.log("[schift-ai-memory] run without --dry-run to install into ~/.claude/settings.json");
+    return;
+  }
+
+  const current = await readJsonIfExists(target);
+  const currentHooks = (current.hooks ?? {}) as Record<string, unknown>;
+  const ourHooks = ours.hooks as Record<string, unknown[]>;
+
+  const mergedHooks: Record<string, unknown> = { ...currentHooks };
+  for (const [event, groups] of Object.entries(ourHooks)) {
+    mergedHooks[event] = mergeHookEvent(currentHooks[event], groups);
+  }
+
+  const merged = {
+    ...current,
+    hooks: mergedHooks,
+    env: { ...((current.env ?? {}) as Record<string, unknown>), ...ours.env },
+  };
+
+  await atomicWriteJson(target, merged);
+  console.log(`[schift-ai-memory] installed hooks into ${target}`);
+  console.log(`[schift-ai-memory] events: ${Object.keys(ourHooks).join(", ")}`);
+  console.log("[schift-ai-memory] existing non-Schift hooks were preserved.");
+  console.log("[schift-ai-memory] verify with: npx @schift-io/ai-memory doctor");
 }
 
 function initPlan() {
@@ -433,6 +506,25 @@ async function doctor() {
       next_action: "Run `npx -y @schift-io/ai-memory login`.",
     }, null, 2));
     return;
+  }
+
+  // 훅이 실제로 설치돼 있는지 본다. 로그인만 돼 있고 훅이 없으면 아무 것도
+  // 수집되지 않는데, 그 상태가 "설치했다"로 착각되기 가장 쉽다 —
+  // 우리 제품 지표가 "설치 커버리지"라 이 구분이 곧 숫자의 정확도다.
+  const settingsPath = join(homedir(), ".claude", "settings.json");
+  const settings = await readJsonIfExists(settingsPath);
+  const installedEvents = Object.entries((settings.hooks ?? {}) as Record<string, unknown>)
+    .filter(([, groups]) => Array.isArray(groups) && groups.some((g) => isOurHookGroup(g)))
+    .map(([event]) => event);
+  if (installedEvents.length > 0) {
+    checks.push({ name: "claude_code_hooks", status: "ok", path: settingsPath, events: installedEvents });
+  } else {
+    checks.push({
+      name: "claude_code_hooks",
+      status: "missing",
+      path: settingsPath,
+      next_action: "Run `npx -y @schift-io/ai-memory claude-code-settings` to install the hooks.",
+    });
   }
 
   const apiKey = stringValue(config.api_key);
