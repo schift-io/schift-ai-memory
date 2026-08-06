@@ -10,6 +10,8 @@ import {
   enqueueEvent,
   uploadEvent,
   uploadUsage,
+  getHarness,
+  registerDefaultHarnesses,
 } from "@schift-io/ai-memory-core";
 
 interface LocalConfig {
@@ -80,109 +82,6 @@ function record(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
-}
-
-/** 하네스가 보고한 토큰/모델을 꺼낸다.
- *
- * Claude Code 와 Codex 가 서로 다른 키로 준다(그리고 버전마다 바뀐다). 그래서
- * 후보 키를 모두 훑되, **없으면 그 필드를 만들지 않는다** — 0으로 채우면
- * "안 썼다"와 "못 읽었다"가 같아져서 수신측 집계가 조용히 틀어진다. */
-/** Claude Code 트랜스크립트(JSONL)에서 세션 누적 사용량을 읽는다.
- *
- * **Stop 훅 페이로드에는 토큰이 없다**(실측: session_id / transcript_path / cwd 만 온다).
- * 토큰과 모델은 트랜스크립트의 assistant 메시지마다 `message.usage` 로 들어 있다.
- * 그래서 페이로드만 보면 아무것도 못 잡는다 — 파일을 직접 읽어 합산해야 한다.
- *
- * 반환값은 **세션 누적**이다. Stop 은 턴마다 불리므로 매번 전체를 다시 합산하고,
- * 서버가 세션 단위로 덮어쓴다(합산이 아니라 교체). 그래야 몇 번 불리든 중복되지 않는다. */
-async function usageFromTranscript(path: string): Promise<AiMemoryUsage | undefined> {
-  let text: string;
-  try {
-    text = await readFile(path, "utf8");
-  } catch {
-    return undefined;
-  }
-
-  let input = 0;
-  let output = 0;
-  let cached = 0;
-  let requests = 0;
-  let model: string | undefined;
-
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    const message = record((parsed as Record<string, unknown>)?.message);
-    const usage = record(message?.usage);
-    if (!usage) continue;
-
-    requests += 1;
-    input += numberValue(usage.input_tokens) ?? 0;
-    output += numberValue(usage.output_tokens) ?? 0;
-    // 캐시 생성분도 과금 대상이라 입력에 포함해야 실제 비용과 맞는다.
-    input += numberValue(usage.cache_creation_input_tokens) ?? 0;
-    cached += numberValue(usage.cache_read_input_tokens) ?? 0;
-    // 마지막에 쓰인 모델을 남긴다 — 세션 중 모델이 바뀌면 최신이 대표값이다.
-    model = stringValue(message?.model) ?? model;
-  }
-
-  if (requests === 0) return undefined;
-
-  const usage: AiMemoryUsage = {
-    input_tokens: input,
-    output_tokens: output,
-    total_tokens: input + output,
-    requests,
-  };
-  if (cached > 0) usage.cached_input_tokens = cached;
-  if (model) usage.model = model;
-  return usage;
-}
-
-function extractUsage(payload: Record<string, unknown>): AiMemoryUsage | undefined {
-  const raw =
-    record(payload.usage) ??
-    record(payload.token_usage) ??
-    record(payload.tokenUsage) ??
-    record(record(payload.message)?.usage) ??
-    {};
-
-  const input =
-    numberValue(raw.input_tokens) ?? numberValue(raw.inputTokens) ?? numberValue(raw.prompt_tokens);
-  const output =
-    numberValue(raw.output_tokens) ??
-    numberValue(raw.outputTokens) ??
-    numberValue(raw.completion_tokens);
-  const cached =
-    numberValue(raw.cache_read_input_tokens) ??
-    numberValue(raw.cached_input_tokens) ??
-    numberValue(raw.cacheReadInputTokens);
-  const total =
-    numberValue(raw.total_tokens) ??
-    numberValue(raw.totalTokens) ??
-    (input !== undefined || output !== undefined ? (input ?? 0) + (output ?? 0) : undefined);
-
-  const usage: AiMemoryUsage = {};
-  const model =
-    stringValue(payload.model) ?? stringValue(raw.model) ?? stringValue(record(payload.message)?.model);
-  if (model) usage.model = model;
-  if (input !== undefined) usage.input_tokens = input;
-  if (output !== undefined) usage.output_tokens = output;
-  if (cached !== undefined) usage.cached_input_tokens = cached;
-  if (total !== undefined) usage.total_tokens = total;
-
-  const cost = numberValue(payload.cost_usd) ?? numberValue(raw.cost_usd) ?? numberValue(payload.total_cost_usd);
-  if (cost !== undefined) usage.cost_usd = cost;
-
-  const requests = numberValue(payload.num_requests) ?? numberValue(raw.requests);
-  if (requests !== undefined) usage.requests = requests;
-
-  return Object.keys(usage).length > 0 ? usage : undefined;
 }
 
 function queueDir(): string {
@@ -265,14 +164,24 @@ async function main() {
     stringValue(payload.userId) ??
     identityUserId(config);
 
-  // 페이로드에 사용량이 실려 오면 그걸 쓰고(Codex 등), 없으면 트랜스크립트를 읽는다
-  // (Claude Code 는 Stop 페이로드에 토큰을 안 준다 — 실측).
-  const transcriptPath = stringValue(payload.transcript_path) ?? stringValue(payload.transcriptPath);
-  const payloadUsage = extractUsage(payload);
-  const transcriptUsage =
-    !payloadUsage && transcriptPath ? await usageFromTranscript(transcriptPath) : undefined;
-  const resolvedUsage = payloadUsage ?? transcriptUsage;
-  const usageSource = payloadUsage ? "hook_payload" : transcriptUsage ? "transcript" : "none";
+  // 하네스별 해석은 **어댑터가 소유한다**. 여기에 키 후보를 늘어놓으면 하네스가
+  // 늘 때마다 이 파일이 자란다 — DI 를 둔 이유가 그거다.
+  registerDefaultHarnesses();
+  const adapter = getHarness(command.startsWith("claude") ? "claude-code" : "codex");
+  const activity = adapter
+    ? await adapter.normalize({
+        payload,
+        readFile: async (path) => {
+          try {
+            return await readFile(path, "utf8");
+          } catch {
+            return null;
+          }
+        },
+      })
+    : { source: "none" as const };
+  const resolvedUsage = activity.usage;
+  const usageSource = activity.source;
 
   const event = createAiMemoryEvent({
     source,
@@ -300,6 +209,10 @@ async function main() {
       payload_keys: Object.keys(payload).sort(),
       usage_captured: Boolean(resolvedUsage),
       usage_source: resolvedUsage ? usageSource : "none",
+      // 무슨 도구를 몇 번 불렀나 — "얼마 썼다" 옆에 "뭘 했다"를 놓는다.
+      // 이름과 횟수만 담는다(인자는 담지 않는다).
+      tools: activity.tools ?? null,
+      turns: activity.turns ?? null,
       config_metadata: {
         has_api_key: Boolean(config.api_key),
         has_org_id: Boolean(orgId),

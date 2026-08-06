@@ -5,7 +5,15 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import { atomicWriteJson, createAiMemoryEvent } from "@schift-io/ai-memory-core";
+import {
+  atomicWriteJson,
+  createAiMemoryEvent,
+  detectHarnesses,
+  installedEvents,
+  listHarnesses,
+  mergeHookEvents,
+  registerDefaultHarnesses,
+} from "@schift-io/ai-memory-core";
 
 const CODING_AGENT_ROLE_PACKAGE_ID = "schift.coding-agent.default";
 
@@ -28,16 +36,25 @@ Usage:
   schift-ai-memory status
   schift-ai-memory me
   schift-ai-memory codex-marketplace
+  schift-ai-memory install [--scope project|user] [--harness <id>] [--dry-run]
+                          [--output <hooks-file>]
+  schift-ai-memory uninstall [--scope project|user]
   schift-ai-memory claude-code-settings [--scope project|user] [--dry-run]
   schift-ai-memory metadata-example
 
-claude-code-settings installs the hooks into settings.json (existing hooks are
-preserved). --scope project keeps them in this repo; --dry-run only writes an
-example file. Verify with: schift-ai-memory doctor
+install detects the AI harnesses actually present on this host (Claude Code,
+Codex, ...) and installs hooks into each one's own config file. Nothing is
+written for a harness that is not installed. Existing non-Schift hooks are
+preserved, and re-running install is idempotent.
 
-The default init flow connects OAuth, writes a Claude Code settings example,
-and prints the remaining host-specific install commands. Use --print for a
-machine-readable install plan.
+--dry-run prints the target files without writing. --output writes the hooks to
+a path you name instead of the detected one; it needs a single target, so pass
+--harness <id> when more than one harness is present.
+
+claude-code-settings is an alias for install, kept for older docs.
+
+The default init flow connects OAuth, installs the hooks, and prints the
+remaining host-specific commands. Use --print for a machine-readable plan.
 `);
 }
 
@@ -202,48 +219,96 @@ async function readJsonIfExists(path: string): Promise<Record<string, unknown>> 
  *
  * 남의 설정은 보존한다: 기존 훅 그룹 중 우리 표식이 없는 것은 그대로 두고,
  * 우리 것만 교체한다. env 도 기존 키를 덮어쓰지 않고 우리 키만 얹는다. */
-async function writeClaudeCodeSettings() {
-  const dryRun = hasFlag("--dry-run") || hasFlag("--print");
+/** 감지된 모든 하네스에 훅을 설치한다.
+ *
+ * 설치 대상을 **하드코딩하지 않는다** — 어댑터 레지스트리가 이 호스트에 실제로
+ * 있는 하네스만 돌려주고, 각 어댑터가 자기 경로와 훅 파일명을 안다(Claude 는
+ * settings.json, Codex 는 별도 hooks.json). Orca 등이 늘면 어댑터 한 줄이면 된다.
+ *
+ * 안 깔린 하네스는 건드리지 않는다. 없는 홈에 우리 디렉터리를 만들어 두는 게
+ * 그 자체로 사고다.
+ */
+async function installHarnessHooks(): Promise<number> {
+  registerDefaultHarnesses();
   const scope = await resolveScope();
-  // project 스코프면 그 레포의 .claude/settings.json 에 넣는다 — 회사 레포와
-  // 개인 레포가 같은 버킷으로 섞이지 않게 하는 유일한 방법이다.
-  const home = scope === "project" ? process.cwd() : homedir();
-  const target =
-    argValue("--output") ??
-    (dryRun
-      ? join(home, ".claude", "settings.schift-ai-memory.example.json")
-      : join(home, ".claude", "settings.json"));
+  const dryRun = hasFlag("--dry-run") || hasFlag("--print");
+  const only = argValue("--harness");
 
-  const ours = claudeCodeSettings(companyBucket());
+  let detected = detectHarnesses(scope, process.cwd(), homedir());
+  if (only) detected = detected.filter((d) => d.adapter.id === only);
 
-  if (dryRun) {
-    await atomicWriteJson(target, ours);
-    console.log(`[schift-ai-memory] wrote example: ${target}`);
-    console.log("[schift-ai-memory] run without --dry-run to install into ~/.claude/settings.json");
-    return;
+  // `--output` 은 훅 파일 경로를 직접 지정한다(테스트·운영 스크립트용).
+  // 대상이 둘 이상이면 어디에 쓸지 알 수 없으므로 **조용히 하나를 고르지 않고 멈춘다** —
+  // 지정한 경로가 무시되면 사용자는 설치됐다고 믿고 엉뚱한 파일을 들여다보게 된다.
+  const outputOverride = argValue("--output");
+  if (outputOverride && detected.length > 1) {
+    console.log(
+      `[schift-ai-memory] --output needs a single target; detected: ${detected
+        .map((d) => d.adapter.id)
+        .join(", ")}. Pass --harness <id>.`,
+    );
+    return 1;
   }
 
-  const current = await readJsonIfExists(target);
-  const currentHooks = (current.hooks ?? {}) as Record<string, unknown>;
-  const ourHooks = ours.hooks as Record<string, unknown[]>;
-
-  const mergedHooks: Record<string, unknown> = { ...currentHooks };
-  for (const [event, groups] of Object.entries(ourHooks)) {
-    mergedHooks[event] = mergeHookEvent(currentHooks[event], groups);
+  if (detected.length === 0) {
+    console.log("[schift-ai-memory] no supported AI harness found on this host.");
+    console.log(
+      "[schift-ai-memory] looked for: " + listHarnesses().map((a) => a.displayName).join(", "),
+    );
+    console.log("[schift-ai-memory] install one, or pass --scope project to set this repo up anyway.");
+    return 1;
   }
 
-  const merged = {
-    ...current,
-    hooks: mergedHooks,
-    env: { ...((current.env ?? {}) as Record<string, unknown>), ...ours.env },
+  const ctx = {
+    bucket: companyBucket(),
+    collection: collectionName(),
+    uploadPolicy: "summary_metadata_only",
   };
 
-  await atomicWriteJson(target, merged);
-  await writeSetupScope(scope);
-  console.log(`[schift-ai-memory] installed hooks into ${target} (scope: ${scope})`);
-  console.log(`[schift-ai-memory] events: ${Object.keys(ourHooks).join(", ")}`);
-  console.log("[schift-ai-memory] existing non-Schift hooks were preserved.");
-  console.log("[schift-ai-memory] verify with: npx @schift-io/ai-memory doctor");
+  for (const { adapter, detection } of detected) {
+    const target = outputOverride ?? detection.hooksFile;
+    const current = await readJsonIfExists(target);
+    // 변환은 전적으로 어댑터 몫이다. 여기에 하네스별 분기가 생기면 인터페이스가
+    // 부족한 것이고, 그 분기는 하네스가 늘 때마다 번진다.
+    const next = adapter.applyHooks(current, ctx);
+
+    if (dryRun) {
+      console.log(`[schift-ai-memory] (dry-run) ${adapter.displayName} -> ${target}`);
+      console.log(`[schift-ai-memory]   events: ${adapter.events.map((e) => e.event).join(", ")}`);
+      continue;
+    }
+
+    await atomicWriteJson(target, next);
+    console.log(
+      `[schift-ai-memory] ${adapter.displayName}: installed ${adapter.events.length} hooks into ${target} (${
+        outputOverride ? "--output override" : detection.evidence
+      })`,
+    );
+  }
+
+  if (!dryRun) {
+    await writeSetupScope(scope);
+    console.log("[schift-ai-memory] existing non-Schift hooks were preserved.");
+    console.log("[schift-ai-memory] verify with: npx @schift-io/ai-memory doctor");
+  }
+  return 0;
+}
+
+async function uninstallHarnessHooks(): Promise<number> {
+  registerDefaultHarnesses();
+  const scope = await resolveScope();
+  const detected = detectHarnesses(scope, process.cwd(), homedir());
+  for (const { adapter, detection } of detected) {
+    const current = await readJsonIfExists(detection.hooksFile);
+    const before = adapter.readInstalledEvents(current);
+    if (before.length === 0) continue;
+    await atomicWriteJson(detection.hooksFile, adapter.removeHooks(current));
+    console.log(
+      `[schift-ai-memory] ${adapter.displayName}: removed ${before.length} hooks from ${detection.hooksFile}`,
+    );
+  }
+  console.log("[schift-ai-memory] only Schift-owned hooks were removed.");
+  return 0;
 }
 
 function initPlan() {
@@ -324,7 +389,7 @@ async function init() {
     await login();
   }
 
-  await writeClaudeCodeSettings();
+  await installHarnessHooks();
 
   console.log("[schift-ai-memory] Codex plugin command:");
   console.log(codexMarketplaceCommand());
@@ -554,23 +619,39 @@ async function doctor() {
     return;
   }
 
-  // 훅이 실제로 설치돼 있는지 본다. 로그인만 돼 있고 훅이 없으면 아무 것도
-  // 수집되지 않는데, 그 상태가 "설치했다"로 착각되기 가장 쉽다 —
-  // 우리 제품 지표가 "설치 커버리지"라 이 구분이 곧 숫자의 정확도다.
-  const settingsPath = join(homedir(), ".claude", "settings.json");
-  const settings = await readJsonIfExists(settingsPath);
-  const installedEvents = Object.entries((settings.hooks ?? {}) as Record<string, unknown>)
-    .filter(([, groups]) => Array.isArray(groups) && groups.some((g) => isOurHookGroup(g)))
-    .map(([event]) => event);
-  if (installedEvents.length > 0) {
-    checks.push({ name: "claude_code_hooks", status: "ok", path: settingsPath, events: installedEvents });
-  } else {
+  // 훅이 실제로 설치돼 있는지 본다 — **감지된 모든 하네스에 대해**.
+  // 로그인만 돼 있고 훅이 없으면 아무 것도 수집되지 않는데, 그 상태가
+  // "설치했다"로 착각되기 가장 쉽다. 우리 제품 지표가 "설치 커버리지"라
+  // 이 구분이 곧 숫자의 정확도다.
+  registerDefaultHarnesses();
+  const harnessScope = await resolveScope();
+  const detectedHarnesses = detectHarnesses(harnessScope, process.cwd(), homedir());
+  if (detectedHarnesses.length === 0) {
     checks.push({
-      name: "claude_code_hooks",
-      status: "missing",
-      path: settingsPath,
-      next_action: "Run `npx -y @schift-io/ai-memory claude-code-settings` to install the hooks.",
+      name: "harness",
+      status: "none_detected",
+      looked_for: listHarnesses().map((a) => a.id),
+      next_action: "Install Claude Code or Codex, then run `npx -y @schift-io/ai-memory install`.",
     });
+  }
+  for (const { adapter, detection } of detectedHarnesses) {
+    const cfg = await readJsonIfExists(detection.hooksFile);
+    const events = adapter.readInstalledEvents(cfg);
+    checks.push(
+      events.length > 0
+        ? {
+            name: `hooks:${adapter.id}`,
+            status: "ok",
+            path: detection.hooksFile,
+            events,
+          }
+        : {
+            name: `hooks:${adapter.id}`,
+            status: "missing",
+            path: detection.hooksFile,
+            next_action: `Run \`npx -y @schift-io/ai-memory install --harness ${adapter.id}\`.`,
+          },
+    );
   }
 
   const apiKey = stringValue(config.api_key);
@@ -790,12 +871,19 @@ async function main() {
     console.log(codexMarketplaceCommand());
     return;
   }
+  if (command === "uninstall") {
+    process.exitCode = await uninstallHarnessHooks();
+    return;
+  }
+  if (command === "install" || command === "hooks") {
+    process.exitCode = await installHarnessHooks();
+    return;
+  }
   if (command === "claude-code-settings") {
-    if (hasFlag("--print")) {
-      console.log(JSON.stringify(claudeCodeSettings(companyBucket()), null, 2));
-      return;
-    }
-    await writeClaudeCodeSettings();
+    // 하위호환 별칭. 설치 구현은 하나뿐이다 — 두 벌을 유지하면 한쪽만 고쳐지고
+    // 그 차이가 "깔았는데 안 도는" 상태로 나타난다.
+    console.log("[schift-ai-memory] note: `claude-code-settings` is now an alias for `install`.");
+    process.exitCode = await installHarnessHooks();
     return;
   }
   if (command === "metadata-example") {

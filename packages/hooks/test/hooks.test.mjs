@@ -22,6 +22,25 @@ function runHook(args, input, env) {
   });
 }
 
+/** 훅은 SCHIFT_* env 를 설정 파일보다 우선해서 읽는다. 개발자 셸에 그런 변수가
+ * 하나라도 떠 있으면(예: SCHIFT_RAG_BUCKET) 테스트가 그 값을 집어 실패하거나 —
+ * 더 나쁘게는 — 남의 버킷을 향한 채로 통과한다. 그래서 **SCHIFT_ 로 시작하는 것을
+ * 전부 걷어내고** 테스트가 명시한 것만 남긴다.
+ *
+ * env 를 걷어내는 것만으로는 부족하다: 훅은 env 가 없으면 **개발자의 진짜
+ * ~/.schift/ai-memory/config.json** 을 읽어 거기 적힌 버킷·API 키를 쓴다. 그래서
+ * 설정 경로도 없는 파일로 기본 고정하고, 필요한 테스트만 자기 설정을 지정한다. */
+function hookEnv(overrides) {
+  const base = Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith("SCHIFT_")),
+  );
+  return {
+    ...base,
+    SCHIFT_AI_MEMORY_CONFIG: join(tmpdir(), "schift-ai-memory-absent-config.json"),
+    ...overrides,
+  };
+}
+
 describe("AI memory hooks", () => {
   it("queues a redacted Codex stop event without failing the host", async () => {
     const dir = await mkdtemp(join(tmpdir(), "schift-ai-memory-hooks-"));
@@ -33,12 +52,11 @@ describe("AI memory hooks", () => {
           prompt: "Fix token sk-abc1234567890abc1234567890abc",
           cwd: "/Users/alice/Projects/schift",
         }),
-        {
-          ...process.env,
+        hookEnv({
           SCHIFT_AI_MEMORY_QUEUE_DIR: dir,
           SCHIFT_COMPANY_BUCKET: "company:room821",
           SCHIFT_AI_MEMORY_UPLOAD: "0",
-        },
+        }),
       );
       const files = await readdir(dir);
       assert.equal(files.length, 1);
@@ -82,12 +100,11 @@ describe("AI memory hooks", () => {
           session_id: "sess_2",
           prompt: "Summarize local config identity",
         }),
-        {
-          ...process.env,
+        hookEnv({
           SCHIFT_AI_MEMORY_QUEUE_DIR: dir,
           SCHIFT_AI_MEMORY_CONFIG: configPath,
           SCHIFT_AI_MEMORY_UPLOAD: "0",
-        },
+        }),
       );
 
       const files = (await readdir(dir)).filter((name) => name.endsWith(".json") && name !== "config.json");
@@ -123,12 +140,11 @@ describe("AI memory hooks", () => {
       await runHook(
         ["codex-stop"],
         JSON.stringify({ session_id: "sess_session_memory", prompt: "Store only the session summary" }),
-        {
-          ...process.env,
+        hookEnv({
           SCHIFT_AI_MEMORY_QUEUE_DIR: dir,
           SCHIFT_AI_MEMORY_CONFIG: configPath,
           SCHIFT_AI_MEMORY_UPLOAD: "0",
-        },
+        }),
       );
       const files = (await readdir(dir)).filter((name) => name !== "config.json");
       const queued = JSON.parse(await readFile(join(dir, files[0]), "utf8"));
@@ -175,11 +191,10 @@ describe("AI memory hooks", () => {
         JSON.stringify({
           prompt: "Trigger auth failure",
         }),
-        {
-          ...process.env,
+        hookEnv({
           SCHIFT_AI_MEMORY_QUEUE_DIR: dir,
           SCHIFT_AI_MEMORY_CONFIG: configPath,
-        },
+        }),
       );
 
       const updatedConfig = JSON.parse(await readFile(configPath, "utf8"));

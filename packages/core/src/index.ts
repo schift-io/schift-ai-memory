@@ -10,6 +10,9 @@ export * from "./cclg-format.js";
 export * from "./cclg-schema.js";
 export * from "./cclg-container.js";
 export * from "./cclg-effective-view.js";
+export * from "./harness.js";
+export * from "./harness-adapters.js";
+export * from "./harness-parsers.js";
 
 export type AiMemorySource =
   | "codex"

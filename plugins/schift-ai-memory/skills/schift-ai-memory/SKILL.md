@@ -27,6 +27,10 @@ When summarizing a session, include:
 - remaining blockers or risks
 - file paths or commit ids when relevant
 
+Keep every fact. Shortening a summary means cutting prose, never dropping a
+name, number, date, path, or identifier — once it is left out here, nothing
+downstream can recover it.
+
 Do not describe internal bucket ids unless the user is debugging routing. Use
 the company/workspace name in user-facing text.
 
